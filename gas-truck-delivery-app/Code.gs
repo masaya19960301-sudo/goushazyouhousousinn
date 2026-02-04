@@ -206,15 +206,25 @@ function registerDriver(truckNumber, name) {
 
     const sheet = getOrCreateTruckMasterSheet();
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss');
+    const truckStr = String(truckNumber).trim();
+    const nameStr = String(name).trim();
 
-    sheet.appendRow([truckNumber, name.trim(), '', timestamp]);
+    Logger.log('registerDriver: 号車=' + truckStr + ', ドライバー=' + nameStr);
+
+    sheet.appendRow([truckStr, nameStr, '', timestamp]);
+
+    // シートを即座に保存
+    SpreadsheetApp.flush();
+
+    Logger.log('registerDriver: 登録完了');
 
     return {
       success: true,
       message: 'ドライバーを登録しました',
-      driver: { id: name.trim(), name: name.trim() }
+      driver: { id: nameStr, name: nameStr }
     };
   } catch (e) {
+    Logger.log('registerDriver error: ' + e.message);
     return { success: false, message: 'エラー: ' + e.message };
   }
 }
@@ -232,15 +242,23 @@ function registerVehicle(truckNumber, vehicleNo) {
     }
 
     // 半角数字4桁チェック
-    const numOnly = vehicleNo.trim();
+    const numOnly = String(vehicleNo).trim();
     if (!/^\d{1,4}$/.test(numOnly)) {
       return { success: false, message: '車両Noは半角数字4桁以内で入力してください' };
     }
 
     const sheet = getOrCreateTruckMasterSheet();
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss');
+    const truckStr = String(truckNumber).trim();
 
-    sheet.appendRow([truckNumber, '', numOnly, timestamp]);
+    Logger.log('registerVehicle: 号車=' + truckStr + ', 車両No=' + numOnly);
+
+    sheet.appendRow([truckStr, '', numOnly, timestamp]);
+
+    // シートを即座に保存
+    SpreadsheetApp.flush();
+
+    Logger.log('registerVehicle: 登録完了');
 
     return {
       success: true,
@@ -248,6 +266,7 @@ function registerVehicle(truckNumber, vehicleNo) {
       vehicle: { id: numOnly, name: numOnly }
     };
   } catch (e) {
+    Logger.log('registerVehicle error: ' + e.message);
     return { success: false, message: 'エラー: ' + e.message };
   }
 }
@@ -320,6 +339,29 @@ function getTruckData(truckNumber) {
 }
 
 /**
+ * 日付を文字列に変換（YYYY-MM-DD形式）
+ */
+function formatDateValue(value) {
+  if (!value) return '';
+
+  // 既にDate型の場合
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, 'Asia/Tokyo', 'yyyy-MM-dd');
+  }
+
+  // 文字列の場合、そのまま返す（既にYYYY-MM-DD形式と仮定）
+  const strValue = String(value).trim();
+
+  // 日本語形式の日付（YYYY/MM/DD）をYYYY-MM-DDに変換
+  if (/^\d{4}\/\d{1,2}\/\d{1,2}/.test(strValue)) {
+    const parts = strValue.split('/');
+    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0').substring(0, 2)}`;
+  }
+
+  return strValue;
+}
+
+/**
  * 業務開始記録を保存
  */
 function saveStartRecord(data) {
@@ -328,17 +370,20 @@ function saveStartRecord(data) {
     const recordId = Utilities.getUuid().substring(0, 8);
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss');
 
+    // 日付は文字列として保存（自動変換を防ぐ）
+    const dateStr = String(data.date || '').trim();
+
     sheet.appendRow([
       recordId,
-      data.date,
-      data.truckNumber,
-      data.driverName,
-      data.vehicleNo,
-      data.yoshaCategory1,
-      data.yoshaCategory2,
-      data.helper || '',
-      data.departureMeter,
-      data.departureTime,
+      dateStr,
+      String(data.truckNumber || '').trim(),
+      String(data.driverName || '').trim(),
+      String(data.vehicleNo || '').trim(),
+      String(data.yoshaCategory1 || ''),
+      String(data.yoshaCategory2 || ''),
+      String(data.helper || ''),
+      String(data.departureMeter || ''),
+      String(data.departureTime || ''),
       '', // 行き先（終了時）
       '', // 帰庫メーター
       '', // 配送センター到着時刻
@@ -347,9 +392,12 @@ function saveStartRecord(data) {
       '', // 有料道路使用
       '', // 有料道路区間情報
       '業務開始',
-      data.notes || '',
+      String(data.notes || ''),
       timestamp
     ]);
+
+    // シートを即座に保存
+    SpreadsheetApp.flush();
 
     return {
       success: true,
@@ -357,6 +405,7 @@ function saveStartRecord(data) {
       recordId: recordId
     };
   } catch (e) {
+    Logger.log('saveStartRecord error: ' + e.message);
     return {
       success: false,
       message: 'エラー: ' + e.message
@@ -382,28 +431,34 @@ function saveEndRecord(data) {
     // 直帰の場合、配送センター到着時刻は営業所帰庫時刻と同じ
     const centerArrivalTime = data.destination === '直帰' ? data.officeArrivalTime : data.centerArrivalTime;
 
+    // 日付は文字列として保存（自動変換を防ぐ）
+    const dateStr = String(data.date || '').trim();
+
     sheet.appendRow([
       recordId,
-      data.date,
-      data.truckNumber,
-      data.driverName,
+      dateStr,
+      String(data.truckNumber || '').trim(),
+      String(data.driverName || '').trim(),
       '', // 車両No（開始時のみ）
       '', // 庸車区分①
       '', // 庸車区分②
       '', // 助手
       '', // 出庫メーター
       '', // 出庫時刻
-      data.destination,
-      data.returnMeter,
-      centerArrivalTime,
-      data.officeArrivalTime,
-      data.hasCashOnDelivery,
-      data.useTollRoad,
+      String(data.destination || ''),
+      String(data.returnMeter || ''),
+      String(centerArrivalTime || ''),
+      String(data.officeArrivalTime || ''),
+      String(data.hasCashOnDelivery || ''),
+      String(data.useTollRoad || ''),
       tollRoadInfo,
       '業務終了',
-      data.notes || '',
+      String(data.notes || ''),
       timestamp
     ]);
+
+    // シートを即座に保存
+    SpreadsheetApp.flush();
 
     return {
       success: true,
@@ -411,6 +466,7 @@ function saveEndRecord(data) {
       recordId: recordId
     };
   } catch (e) {
+    Logger.log('saveEndRecord error: ' + e.message);
     return {
       success: false,
       message: 'エラー: ' + e.message
@@ -426,6 +482,8 @@ function getHistory(filter) {
     const sheet = getOrCreateHistorySheet();
     const data = sheet.getDataRange().getValues();
 
+    Logger.log('getHistory: データ行数 = ' + data.length);
+
     if (data.length <= 1) {
       return {
         success: true,
@@ -438,15 +496,20 @@ function getHistory(filter) {
     const filterTruck = filter && filter.truckNumber ? String(filter.truckNumber).trim() : null;
     const filterDate = filter && filter.date ? String(filter.date).trim() : null;
 
+    Logger.log('getHistory: フィルタ - 号車=' + filterTruck + ', 日付=' + filterDate);
+
     for (let i = data.length - 1; i >= 1; i--) {
       const row = data[i];
 
       // 空行をスキップ
       if (!row[0]) continue;
 
+      // 日付を適切に変換
+      const recordDate = formatDateValue(row[1]);
+
       const record = {
         recordId: row[0] ? String(row[0]) : '',
-        date: row[1] ? String(row[1]) : '',
+        date: recordDate,
         truckNumber: row[2] ? String(row[2]).trim() : '',
         driverName: row[3] ? String(row[3]).trim() : '',
         vehicleNo: row[4] ? String(row[4]).trim() : '',
@@ -477,11 +540,14 @@ function getHistory(filter) {
     // 最新50件に制限
     records = records.slice(0, 50);
 
+    Logger.log('getHistory: 取得件数 = ' + records.length);
+
     return {
       success: true,
       records: records
     };
   } catch (e) {
+    Logger.log('getHistory error: ' + e.message);
     return {
       success: false,
       message: 'エラー: ' + e.message,
@@ -553,24 +619,30 @@ function getAllMasterEntries() {
     const data = sheet.getDataRange().getValues();
     const entries = [];
 
+    Logger.log('getAllMasterEntries: データ行数 = ' + data.length);
+
     for (let i = 1; i < data.length; i++) {
       // 空行をスキップ
       if (!data[i][0] && !data[i][1] && !data[i][2]) continue;
 
-      entries.push({
+      const entry = {
         rowIndex: i + 1, // スプレッドシートの行番号（1始まり）
         truckNumber: data[i][0] ? String(data[i][0]).trim() : '',
         driverName: data[i][1] ? String(data[i][1]).trim() : '',
         vehicleNo: data[i][2] ? String(data[i][2]).trim() : '',
-        timestamp: data[i][3] || ''
-      });
+        timestamp: data[i][3] ? String(data[i][3]) : ''
+      };
+      entries.push(entry);
     }
+
+    Logger.log('getAllMasterEntries: 取得件数 = ' + entries.length);
 
     return {
       success: true,
       entries: entries
     };
   } catch (e) {
+    Logger.log('getAllMasterEntries error: ' + e.message);
     return {
       success: false,
       message: 'エラー: ' + e.message,

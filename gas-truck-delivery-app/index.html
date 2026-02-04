@@ -862,17 +862,24 @@
       const listEl = document.getElementById('master-entries-list');
       listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
 
+      console.log('loadMasterEntries: 開始');
+
       google.script.run
         .withSuccessHandler(function(result) {
-          if (result.success) {
-            allMasterEntries = result.entries;
-            renderMasterEntries(result.entries);
+          console.log('loadMasterEntries: 結果受信', result);
+          if (result && result.success) {
+            allMasterEntries = result.entries || [];
+            console.log('loadMasterEntries: 件数=' + allMasterEntries.length);
+            renderMasterEntries(allMasterEntries);
           } else {
-            listEl.innerHTML = '<div class="empty-state"><p>読み込みエラー</p></div>';
+            const errorMsg = result && result.message ? result.message : '不明なエラー';
+            console.log('loadMasterEntries: エラー', errorMsg);
+            listEl.innerHTML = '<div class="empty-state"><p>読み込みエラー: ' + errorMsg + '</p></div>';
           }
         })
-        .withFailureHandler(function() {
-          listEl.innerHTML = '<div class="empty-state"><p>読み込みエラー</p></div>';
+        .withFailureHandler(function(error) {
+          console.log('loadMasterEntries: 通信エラー', error);
+          listEl.innerHTML = '<div class="empty-state"><p>通信エラーが発生しました</p></div>';
         })
         .getAllMasterEntries();
     }
@@ -1428,17 +1435,23 @@
         truckNumber: document.getElementById('history-filter-truck').value || null,
         date: document.getElementById('history-filter-date').value || null
       };
+      console.log('loadHistory: フィルタ', filter);
+
       google.script.run
         .withSuccessHandler(function(result) {
-          if (result.success) {
-            historyRecords = result.records;
-            renderHistory(result.records);
+          console.log('loadHistory: 結果受信', result);
+          if (result && result.success) {
+            historyRecords = result.records || [];
+            console.log('loadHistory: 件数=' + historyRecords.length);
+            renderHistory(historyRecords);
           } else {
-            listContainer.innerHTML = '<div class="empty-state"><p>' + result.message + '</p></div>';
+            const errorMsg = result && result.message ? result.message : '履歴がありません';
+            listContainer.innerHTML = '<div class="empty-state"><p>' + errorMsg + '</p></div>';
           }
         })
-        .withFailureHandler(function() {
-          listContainer.innerHTML = '<div class="empty-state"><p>読み込みエラー</p></div>';
+        .withFailureHandler(function(error) {
+          console.log('loadHistory: 通信エラー', error);
+          listContainer.innerHTML = '<div class="empty-state"><p>通信エラーが発生しました</p></div>';
         })
         .getHistory(filter);
     }
