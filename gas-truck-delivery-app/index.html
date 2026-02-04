@@ -12,8 +12,11 @@
       background-color: #f5f5f5;
       color: #333;
       line-height: 1.6;
+      overflow-x: hidden;
     }
     .container { max-width: 500px; margin: 0 auto; padding: 10px; }
+
+    /* ヘッダー */
     .header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
@@ -21,31 +24,96 @@
       text-align: center;
       border-radius: 10px;
       margin-bottom: 15px;
+      position: relative;
     }
     .header h1 { font-size: 1.4em; margin-bottom: 5px; }
     .header .subtitle { font-size: 0.85em; opacity: 0.9; }
-    .tab-nav {
-      display: flex;
-      background: white;
-      border-radius: 10px;
-      margin-bottom: 15px;
-      overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .tab-btn {
-      flex: 1;
-      padding: 15px;
-      border: none;
-      background: white;
-      font-size: 1em;
-      font-weight: 600;
-      color: #666;
+
+    /* ハンバーガーメニュー */
+    .hamburger {
+      position: absolute;
+      top: 50%;
+      right: 15px;
+      transform: translateY(-50%);
+      width: 30px;
+      height: 24px;
       cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .hamburger span {
+      display: block;
+      width: 100%;
+      height: 3px;
+      background: white;
+      border-radius: 2px;
       transition: all 0.3s;
     }
-    .tab-btn.active { background: #667eea; color: white; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(6px, 6px); }
+    .hamburger.active span:nth-child(2) { opacity: 0; }
+    .hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
+
+    /* サイドメニュー */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 998;
+    }
+    .sidebar-overlay.active { display: block; }
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: -280px;
+      width: 280px;
+      height: 100%;
+      background: white;
+      z-index: 999;
+      transition: left 0.3s ease;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+    .sidebar.active { left: 0; }
+    .sidebar-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+    .sidebar-header h2 { font-size: 1.2em; }
+    .sidebar-menu { padding: 20px 0; }
+    .sidebar-menu-item {
+      display: flex;
+      align-items: center;
+      padding: 15px 20px;
+      color: #333;
+      text-decoration: none;
+      font-weight: 600;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .sidebar-menu-item:hover { background: #f5f5f5; }
+    .sidebar-menu-item.active { background: #e8f0fe; color: #667eea; }
+    .sidebar-menu-item-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2em;
+    }
+
+    /* 画面 */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* カード */
     .card {
       background: white;
       border-radius: 10px;
@@ -61,6 +129,8 @@
       border-bottom: 2px solid #667eea;
       padding-bottom: 10px;
     }
+
+    /* フォーム */
     .form-group { margin-bottom: 15px; }
     .form-group label {
       display: block;
@@ -87,7 +157,7 @@
     }
     .form-group textarea { resize: vertical; min-height: 80px; }
     .input-with-button { display: flex; gap: 10px; }
-    .input-with-button select { flex: 1; }
+    .input-with-button select, .input-with-button input { flex: 1; }
     .register-btn {
       padding: 12px 16px;
       background: #28a745;
@@ -111,6 +181,8 @@
       font-size: 16px;
     }
     .time-separator { font-size: 1.2em; font-weight: bold; color: #666; }
+
+    /* ボタン */
     .record-type-group { display: flex; gap: 10px; margin-bottom: 15px; }
     .record-type-btn {
       flex: 1;
@@ -141,6 +213,8 @@
     }
     .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4); }
     .submit-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ラジオボタン */
     .radio-group { display: flex; gap: 15px; }
     .radio-option {
       display: flex;
@@ -155,6 +229,8 @@
     .radio-option:hover { border-color: #667eea; }
     .radio-option.selected { border-color: #667eea; background: #f0f4ff; }
     .radio-option input { display: none; }
+
+    /* 有料道路区間 */
     .toll-section {
       background: #f8f9fa;
       border-radius: 8px;
@@ -191,6 +267,8 @@
       margin-top: 10px;
     }
     .add-toll-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* 履歴 */
     .filter-group { display: flex; gap: 10px; margin-bottom: 15px; }
     .filter-group select, .filter-group input {
       flex: 1;
@@ -214,7 +292,7 @@
     }
     .copy-btn:hover { background: #218838; }
     .copy-btn:disabled { background: #ccc; cursor: not-allowed; }
-    .history-list { max-height: 400px; overflow-y: auto; }
+    .history-list { max-height: 500px; overflow-y: auto; }
     .history-item {
       background: #f8f9fa;
       border-radius: 8px;
@@ -231,6 +309,76 @@
     .history-item-type.end { background: #f8d7da; color: #dc3545; }
     .history-item-detail { font-size: 0.9em; color: #666; margin: 5px 0; }
     .history-item-detail strong { color: #333; }
+
+    /* 管理画面 */
+    .master-entry {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .master-entry-info { flex: 1; }
+    .master-entry-truck { font-weight: 600; color: #667eea; }
+    .master-entry-name { margin-top: 5px; }
+    .delete-btn {
+      padding: 8px 12px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .delete-btn:hover { background: #c82333; }
+
+    /* パスワードモーダル */
+    .password-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .password-modal.active { display: flex; }
+    .password-modal-content {
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      width: 90%;
+      max-width: 350px;
+      text-align: center;
+    }
+    .password-modal-title { font-size: 1.2em; font-weight: 600; margin-bottom: 20px; }
+    .password-modal-input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    .password-modal-buttons { display: flex; gap: 10px; }
+    .password-modal-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .password-modal-btn.cancel { background: #e0e0e0; color: #333; }
+    .password-modal-btn.confirm { background: #667eea; color: white; }
+
+    /* ユーティリティ */
     .loading { text-align: center; padding: 20px; color: #666; }
     .spinner {
       display: inline-block;
@@ -245,9 +393,7 @@
     .message { padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: 600; }
     .message.success { background: #d4edda; color: #155724; }
     .message.error { background: #f8d7da; color: #721c24; }
-    .message.info { background: #cce5ff; color: #004085; }
     .empty-state { text-align: center; padding: 40px 20px; color: #999; }
-    .empty-state-icon { font-size: 3em; margin-bottom: 10px; }
     .current-time {
       text-align: center;
       padding: 10px;
@@ -258,6 +404,9 @@
       font-weight: 600;
       color: #495057;
     }
+    .hidden { display: none !important; }
+
+    /* 登録モーダル */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -277,33 +426,75 @@
       padding: 20px;
       width: 90%;
       max-width: 400px;
-      max-height: 80vh;
-      overflow-y: auto;
     }
     .modal-title { font-size: 1.2em; font-weight: 600; margin-bottom: 15px; text-align: center; }
     .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
     .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 1em; font-weight: 600; cursor: pointer; }
     .modal-btn.cancel { background: #e0e0e0; color: #333; }
     .modal-btn.confirm { background: #28a745; color: white; }
+
     #start-form-section, #end-form-section { display: none; }
     #start-form-section.active, #end-form-section.active { display: block; }
-    .hidden { display: none !important; }
+
+    .tab-buttons { display: flex; gap: 10px; margin-bottom: 15px; }
+    .tab-btn-admin {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      background: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .tab-btn-admin.active {
+      background: #667eea;
+      border-color: #667eea;
+      color: white;
+    }
   </style>
 </head>
 <body>
+  <!-- サイドメニューオーバーレイ -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- サイドメニュー -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>メニュー</h2>
+    </div>
+    <div class="sidebar-menu">
+      <div class="sidebar-menu-item active" onclick="navigateTo('record')">
+        <span class="sidebar-menu-item-icon">📝</span>
+        <span>業務記録</span>
+      </div>
+      <div class="sidebar-menu-item" onclick="navigateTo('history')">
+        <span class="sidebar-menu-item-icon">📋</span>
+        <span>履歴</span>
+      </div>
+      <div class="sidebar-menu-item" onclick="openPasswordModal()">
+        <span class="sidebar-menu-item-icon">⚙️</span>
+        <span>ドライバー・車両管理</span>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
+    <!-- ヘッダー -->
     <div class="header">
       <h1>配送業務管理</h1>
       <div class="subtitle">トラック業務開始・終了記録</div>
+      <div class="hamburger" id="hamburger" onclick="toggleSidebar()">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
     </div>
-    <div class="tab-nav">
-      <button class="tab-btn active" onclick="switchTab('input')">業務記録</button>
-      <button class="tab-btn" onclick="switchTab('history')">履歴</button>
-    </div>
+
     <div id="message" class="message" style="display: none;"></div>
 
-    <!-- 入力タブ -->
-    <div id="input-tab" class="tab-content active">
+    <!-- 業務記録画面 -->
+    <div class="screen active" id="record-screen">
       <div class="current-time" id="current-time"></div>
       <div class="card">
         <div class="card-title">記録種別</div>
@@ -331,18 +522,14 @@
             <div class="form-group">
               <label>3. ドライバー名を選択してください *</label>
               <div class="input-with-button">
-                <select id="start-driver" required>
-                  <option value="">選択してください</option>
-                </select>
+                <select id="start-driver" required><option value="">選択してください</option></select>
                 <button type="button" class="register-btn" id="start-driver-btn" onclick="openModal('driver', 'start')" disabled>新規登録</button>
               </div>
             </div>
             <div class="form-group">
               <label>5. 車両Noを選択してください *</label>
               <div class="input-with-button">
-                <select id="start-vehicle" required>
-                  <option value="">選択してください</option>
-                </select>
+                <select id="start-vehicle" required><option value="">選択してください</option></select>
                 <button type="button" class="register-btn" id="start-vehicle-btn" onclick="openModal('vehicle', 'start')" disabled>新規登録</button>
               </div>
             </div>
@@ -351,21 +538,15 @@
             <div class="card-title">詳細情報</div>
             <div class="form-group">
               <label>7. 庸車区分①を選択してください *</label>
-              <select id="start-yosha1" required>
-                <option value="">選択してください</option>
-              </select>
+              <select id="start-yosha1" required><option value="">選択してください</option></select>
             </div>
             <div class="form-group">
               <label>8. 庸車区分②を選択してください</label>
-              <select id="start-yosha2">
-                <option value="">選択してください</option>
-              </select>
+              <select id="start-yosha2"><option value="">選択してください</option></select>
             </div>
             <div class="form-group">
               <label>9. 助手を選択してください</label>
-              <select id="start-helper">
-                <option value="">なし</option>
-              </select>
+              <select id="start-helper"><option value="">なし</option></select>
             </div>
             <div class="form-group">
               <label>10. 出庫メーターを入力してください *</label>
@@ -399,21 +580,15 @@
             </div>
             <div class="form-group">
               <label>2. 号車を選択してください *</label>
-              <select id="end-truck" required onchange="onEndTruckChange()">
-                <option value="">選択してください</option>
-              </select>
+              <select id="end-truck" required onchange="onEndTruckChange()"><option value="">選択してください</option></select>
             </div>
             <div class="form-group">
               <label>ドライバー名を選択してください *</label>
-              <select id="end-driver" required>
-                <option value="">選択してください</option>
-              </select>
+              <select id="end-driver" required><option value="">選択してください</option></select>
             </div>
             <div class="form-group">
               <label>3. 業務終了後の行き先を選択してください *</label>
-              <select id="end-destination" required onchange="onDestinationChange()">
-                <option value="">選択してください</option>
-              </select>
+              <select id="end-destination" required onchange="onDestinationChange()"><option value="">選択してください</option></select>
             </div>
             <div class="form-group">
               <label>4. 帰庫メーターを入力してください *</label>
@@ -439,12 +614,10 @@
               <label>7. 代引き・返金はありましたか？ *</label>
               <div class="radio-group">
                 <label class="radio-option" id="cod-yes-label">
-                  <input type="radio" name="cashOnDelivery" value="はい" required>
-                  <span>はい</span>
+                  <input type="radio" name="cashOnDelivery" value="はい" required><span>はい</span>
                 </label>
                 <label class="radio-option" id="cod-no-label">
-                  <input type="radio" name="cashOnDelivery" value="いいえ">
-                  <span>いいえ</span>
+                  <input type="radio" name="cashOnDelivery" value="いいえ"><span>いいえ</span>
                 </label>
               </div>
             </div>
@@ -452,25 +625,20 @@
               <label>8. 有料道路は使用しましたか？ *</label>
               <div class="radio-group">
                 <label class="radio-option" id="toll-yes-label">
-                  <input type="radio" name="useTollRoad" value="はい" required onchange="onTollRoadChange()">
-                  <span>はい</span>
+                  <input type="radio" name="useTollRoad" value="はい" required onchange="onTollRoadChange()"><span>はい</span>
                 </label>
                 <label class="radio-option" id="toll-no-label">
-                  <input type="radio" name="useTollRoad" value="いいえ" onchange="onTollRoadChange()">
-                  <span>いいえ</span>
+                  <input type="radio" name="useTollRoad" value="いいえ" onchange="onTollRoadChange()"><span>いいえ</span>
                 </label>
               </div>
             </div>
           </div>
-
-          <!-- 有料道路区間（動的に表示） -->
           <div class="card hidden" id="toll-road-card">
             <div class="card-title">有料道路区間情報</div>
             <div id="toll-sections-container"></div>
             <button type="button" class="add-toll-btn" id="add-toll-btn" onclick="addTollSection()">+ 使用区間を追加</button>
             <p style="font-size: 0.8em; color: #666; margin-top: 10px;">※最大10区間まで入力できます</p>
           </div>
-
           <div class="card">
             <div class="form-group">
               <label>備考</label>
@@ -482,21 +650,78 @@
       </div>
     </div>
 
-    <!-- 履歴タブ -->
-    <div id="history-tab" class="tab-content">
+    <!-- 履歴画面 -->
+    <div class="screen" id="history-screen">
       <div class="card">
         <div class="card-title">履歴検索</div>
-        <div class="filter-group">
-          <select id="filter-truck"><option value="">全ての号車</option></select>
-          <input type="date" id="filter-date">
+        <div class="form-group">
+          <label>日付を選択</label>
+          <input type="date" id="history-filter-date">
         </div>
-        <button class="submit-btn" onclick="loadHistory()" style="margin-bottom: 10px;">検索</button>
+        <div class="form-group">
+          <label>号車を選択</label>
+          <select id="history-filter-truck"><option value="">全ての号車</option></select>
+        </div>
+        <button class="submit-btn" onclick="loadHistory()">検索</button>
       </div>
       <div class="card">
         <div class="card-title">履歴一覧</div>
         <button class="copy-btn" id="copy-btn" onclick="copyHistory()">履歴を一括コピー</button>
         <div id="history-list" class="history-list">
-          <div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>
+          <div class="empty-state"><p>日付と号車を選択して検索してください</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 管理画面 -->
+    <div class="screen" id="admin-screen">
+      <div class="card">
+        <div class="card-title">ドライバー・車両管理</div>
+        <div class="tab-buttons">
+          <button class="tab-btn-admin active" onclick="switchAdminTab('list')">一覧</button>
+          <button class="tab-btn-admin" onclick="switchAdminTab('register')">新規登録</button>
+        </div>
+      </div>
+
+      <!-- 一覧タブ -->
+      <div id="admin-list-tab">
+        <div class="card">
+          <div class="card-title">登録済み一覧</div>
+          <div class="form-group">
+            <label>号車でフィルタ</label>
+            <select id="admin-filter-truck" onchange="filterMasterEntries()"><option value="">全ての号車</option></select>
+          </div>
+          <div id="master-entries-list">
+            <div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 登録タブ -->
+      <div id="admin-register-tab" class="hidden">
+        <div class="card">
+          <div class="card-title">新規登録</div>
+          <div class="form-group">
+            <label>号車を選択 *</label>
+            <select id="admin-truck" required><option value="">選択してください</option></select>
+          </div>
+          <div class="form-group">
+            <label>種別を選択 *</label>
+            <select id="admin-type" onchange="onAdminTypeChange()">
+              <option value="">選択してください</option>
+              <option value="driver">ドライバー</option>
+              <option value="vehicle">車両No</option>
+            </select>
+          </div>
+          <div class="form-group hidden" id="admin-driver-group">
+            <label>ドライバー名 *</label>
+            <input type="text" id="admin-driver-name" placeholder="例：山田太郎">
+          </div>
+          <div class="form-group hidden" id="admin-vehicle-group">
+            <label>車両No（半角数字4桁以内） *</label>
+            <input type="text" id="admin-vehicle-no" placeholder="例：1234" maxlength="4" pattern="[0-9]*" inputmode="numeric">
+          </div>
+          <button class="submit-btn" onclick="registerFromAdmin()">登録</button>
         </div>
       </div>
     </div>
@@ -517,14 +742,28 @@
     </div>
   </div>
 
+  <!-- パスワードモーダル -->
+  <div class="password-modal" id="password-modal">
+    <div class="password-modal-content">
+      <div class="password-modal-title">管理者パスワード</div>
+      <input type="password" class="password-modal-input" id="admin-password" placeholder="パスワードを入力">
+      <div class="password-modal-buttons">
+        <button class="password-modal-btn cancel" onclick="closePasswordModal()">キャンセル</button>
+        <button class="password-modal-btn confirm" onclick="verifyPassword()">確認</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentRecordType = 'start';
     let historyRecords = [];
     let masterData = {};
+    let allMasterEntries = [];
     let currentModalType = '';
     let currentModalForm = '';
     let tollSectionCount = 0;
     const MAX_TOLL_SECTIONS = 10;
+    let isAdminAuthenticated = false;
 
     document.addEventListener('DOMContentLoaded', initializePage);
 
@@ -539,6 +778,214 @@
       setupRadioListeners();
     }
 
+    // サイドメニュー
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('active');
+      document.getElementById('sidebar-overlay').classList.toggle('active');
+      document.getElementById('hamburger').classList.toggle('active');
+    }
+
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('active');
+      document.getElementById('sidebar-overlay').classList.remove('active');
+      document.getElementById('hamburger').classList.remove('active');
+    }
+
+    function navigateTo(screen) {
+      closeSidebar();
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.sidebar-menu-item').forEach(m => m.classList.remove('active'));
+
+      if (screen === 'record') {
+        document.getElementById('record-screen').classList.add('active');
+        document.querySelectorAll('.sidebar-menu-item')[0].classList.add('active');
+        setCurrentDateTime();
+      } else if (screen === 'history') {
+        document.getElementById('history-screen').classList.add('active');
+        document.querySelectorAll('.sidebar-menu-item')[1].classList.add('active');
+      } else if (screen === 'admin') {
+        document.getElementById('admin-screen').classList.add('active');
+        document.querySelectorAll('.sidebar-menu-item')[2].classList.add('active');
+        loadMasterEntries();
+      }
+    }
+
+    // パスワード認証
+    function openPasswordModal() {
+      closeSidebar();
+      if (isAdminAuthenticated) {
+        navigateTo('admin');
+        return;
+      }
+      document.getElementById('password-modal').classList.add('active');
+      document.getElementById('admin-password').value = '';
+      document.getElementById('admin-password').focus();
+    }
+
+    function closePasswordModal() {
+      document.getElementById('password-modal').classList.remove('active');
+    }
+
+    function verifyPassword() {
+      const password = document.getElementById('admin-password').value;
+      google.script.run
+        .withSuccessHandler(function(isValid) {
+          if (isValid) {
+            isAdminAuthenticated = true;
+            closePasswordModal();
+            navigateTo('admin');
+          } else {
+            showMessage('パスワードが正しくありません', 'error');
+          }
+        })
+        .withFailureHandler(function() {
+          showMessage('認証に失敗しました', 'error');
+        })
+        .verifyAdminPassword(password);
+    }
+
+    // 管理画面
+    function switchAdminTab(tab) {
+      document.querySelectorAll('.tab-btn-admin').forEach(b => b.classList.remove('active'));
+      if (tab === 'list') {
+        document.querySelectorAll('.tab-btn-admin')[0].classList.add('active');
+        document.getElementById('admin-list-tab').classList.remove('hidden');
+        document.getElementById('admin-register-tab').classList.add('hidden');
+      } else {
+        document.querySelectorAll('.tab-btn-admin')[1].classList.add('active');
+        document.getElementById('admin-list-tab').classList.add('hidden');
+        document.getElementById('admin-register-tab').classList.remove('hidden');
+      }
+    }
+
+    function loadMasterEntries() {
+      const listEl = document.getElementById('master-entries-list');
+      listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            allMasterEntries = result.entries;
+            renderMasterEntries(result.entries);
+          } else {
+            listEl.innerHTML = '<div class="empty-state"><p>読み込みエラー</p></div>';
+          }
+        })
+        .withFailureHandler(function() {
+          listEl.innerHTML = '<div class="empty-state"><p>読み込みエラー</p></div>';
+        })
+        .getAllMasterEntries();
+    }
+
+    function filterMasterEntries() {
+      const truckFilter = document.getElementById('admin-filter-truck').value;
+      let filtered = allMasterEntries;
+      if (truckFilter) {
+        filtered = allMasterEntries.filter(e => e.truckNumber === truckFilter);
+      }
+      renderMasterEntries(filtered);
+    }
+
+    function renderMasterEntries(entries) {
+      const listEl = document.getElementById('master-entries-list');
+      if (!entries || entries.length === 0) {
+        listEl.innerHTML = '<div class="empty-state"><p>登録データがありません</p></div>';
+        return;
+      }
+      let html = '';
+      entries.forEach(entry => {
+        const type = entry.driverName ? 'ドライバー' : '車両No';
+        const name = entry.driverName || entry.vehicleNo;
+        html += `
+          <div class="master-entry">
+            <div class="master-entry-info">
+              <div class="master-entry-truck">${entry.truckNumber}</div>
+              <div class="master-entry-name">${type}: ${name}</div>
+            </div>
+            <button class="delete-btn" onclick="deleteMasterEntry(${entry.rowIndex})">削除</button>
+          </div>
+        `;
+      });
+      listEl.innerHTML = html;
+    }
+
+    function deleteMasterEntry(rowIndex) {
+      if (!confirm('削除してもよろしいですか？')) return;
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage(result.message, 'success');
+            loadMasterEntries();
+            loadMasterData();
+          } else {
+            showMessage(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function() {
+          showMessage('削除に失敗しました', 'error');
+        })
+        .deleteMasterEntry(rowIndex);
+    }
+
+    function onAdminTypeChange() {
+      const type = document.getElementById('admin-type').value;
+      document.getElementById('admin-driver-group').classList.toggle('hidden', type !== 'driver');
+      document.getElementById('admin-vehicle-group').classList.toggle('hidden', type !== 'vehicle');
+    }
+
+    function registerFromAdmin() {
+      const truckNumber = document.getElementById('admin-truck').value;
+      const type = document.getElementById('admin-type').value;
+      if (!truckNumber || !type) {
+        showMessage('号車と種別を選択してください', 'error');
+        return;
+      }
+      if (type === 'driver') {
+        const name = document.getElementById('admin-driver-name').value.trim();
+        if (!name) {
+          showMessage('ドライバー名を入力してください', 'error');
+          return;
+        }
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              showMessage(result.message, 'success');
+              document.getElementById('admin-driver-name').value = '';
+              loadMasterEntries();
+              loadMasterData();
+            } else {
+              showMessage(result.message, 'error');
+            }
+          })
+          .withFailureHandler(function() {
+            showMessage('登録に失敗しました', 'error');
+          })
+          .registerDriverAdmin(truckNumber, name);
+      } else if (type === 'vehicle') {
+        const vehicleNo = document.getElementById('admin-vehicle-no').value.trim();
+        if (!vehicleNo || !/^\d{1,4}$/.test(vehicleNo)) {
+          showMessage('車両Noは半角数字4桁以内で入力してください', 'error');
+          return;
+        }
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              showMessage(result.message, 'success');
+              document.getElementById('admin-vehicle-no').value = '';
+              loadMasterEntries();
+              loadMasterData();
+            } else {
+              showMessage(result.message, 'error');
+            }
+          })
+          .withFailureHandler(function() {
+            showMessage('登録に失敗しました', 'error');
+          })
+          .registerVehicleAdmin(truckNumber, vehicleNo);
+      }
+    }
+
+    // 既存の機能
     function setupRadioListeners() {
       document.querySelectorAll('input[name="cashOnDelivery"]').forEach(radio => {
         radio.addEventListener('change', function() {
@@ -560,7 +1007,7 @@
           masterData = data;
           populateBasicSelects();
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function() {
           showMessage('マスタデータの読み込みに失敗しました', 'error');
         })
         .getAllMasterData();
@@ -569,7 +1016,9 @@
     function populateBasicSelects() {
       populateSelect('start-truck', masterData.trucks);
       populateSelect('end-truck', masterData.trucks);
-      populateSelect('filter-truck', masterData.trucks, true);
+      populateSelect('history-filter-truck', masterData.trucks, true);
+      populateSelect('admin-filter-truck', masterData.trucks, true);
+      populateSelect('admin-truck', masterData.trucks);
       populateSelect('start-yosha1', masterData.yoshaCategory1);
       populateSelect('start-yosha2', masterData.yoshaCategory2);
       populateSelect('start-helper', masterData.helpers, false, 'なし');
@@ -593,10 +1042,8 @@
 
     function onStartTruckChange() {
       const truckNumber = document.getElementById('start-truck').value;
-      const driverBtn = document.getElementById('start-driver-btn');
-      const vehicleBtn = document.getElementById('start-vehicle-btn');
-      driverBtn.disabled = !truckNumber;
-      vehicleBtn.disabled = !truckNumber;
+      document.getElementById('start-driver-btn').disabled = !truckNumber;
+      document.getElementById('start-vehicle-btn').disabled = !truckNumber;
       if (truckNumber) {
         loadTruckData(truckNumber, 'start');
       } else {
@@ -624,7 +1071,7 @@
             populateSelect('end-driver', data.drivers);
           }
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function() {
           showMessage('データ取得に失敗しました', 'error');
         })
         .getTruckData(truckNumber);
@@ -672,18 +1119,9 @@
           <span class="toll-section-title">区間 ${tollSectionCount}</span>
           ${tollSectionCount > 1 ? '<button type="button" class="remove-toll-btn" onclick="removeTollSection(' + tollSectionCount + ')">削除</button>' : ''}
         </div>
-        <div class="form-group">
-          <label>9. 開始区間</label>
-          <input type="text" class="toll-start" placeholder="例：東京IC" required>
-        </div>
-        <div class="form-group">
-          <label>10. 終了区間</label>
-          <input type="text" class="toll-end" placeholder="例：横浜IC" required>
-        </div>
-        <div class="form-group">
-          <label>11. 料金（円）</label>
-          <input type="text" class="toll-fee" placeholder="半角数字で入力" pattern="[0-9]*" inputmode="numeric" required>
-        </div>
+        <div class="form-group"><label>9. 開始区間</label><input type="text" class="toll-start" placeholder="例：東京IC" required></div>
+        <div class="form-group"><label>10. 終了区間</label><input type="text" class="toll-end" placeholder="例：横浜IC" required></div>
+        <div class="form-group"><label>11. 料金（円）</label><input type="text" class="toll-fee" placeholder="半角数字で入力" pattern="[0-9]*" inputmode="numeric" required></div>
       `;
       container.appendChild(section);
       updateAddTollButton();
@@ -712,8 +1150,7 @@
     }
 
     function updateAddTollButton() {
-      const btn = document.getElementById('add-toll-btn');
-      btn.disabled = tollSectionCount >= MAX_TOLL_SECTIONS;
+      document.getElementById('add-toll-btn').disabled = tollSectionCount >= MAX_TOLL_SECTIONS;
     }
 
     function getTollSections() {
@@ -766,20 +1203,6 @@
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
       });
-    }
-
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      if (tabName === 'input') {
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
-        document.getElementById('input-tab').classList.add('active');
-        setCurrentDateTime();
-      } else {
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('history-tab').classList.add('active');
-        loadHistory();
-      }
     }
 
     function selectRecordType(type) {
@@ -865,7 +1288,7 @@
               showMessage(result.message, 'error');
             }
           })
-          .withFailureHandler(function(error) {
+          .withFailureHandler(function() {
             showMessage('登録に失敗しました', 'error');
           })
           .registerDriver(truckNumber, value);
@@ -883,7 +1306,7 @@
               showMessage(result.message, 'error');
             }
           })
-          .withFailureHandler(function(error) {
+          .withFailureHandler(function() {
             showMessage('登録に失敗しました', 'error');
           })
           .registerVehicle(truckNumber, value);
@@ -930,7 +1353,7 @@
             showMessage(result.message, 'error');
           }
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function() {
           submitBtn.disabled = false;
           submitBtn.textContent = '業務開始を送信';
           showMessage('送信に失敗しました', 'error');
@@ -990,7 +1413,7 @@
             showMessage(result.message, 'error');
           }
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function() {
           submitBtn.disabled = false;
           submitBtn.textContent = '業務終了を送信';
           showMessage('送信に失敗しました', 'error');
@@ -1002,8 +1425,8 @@
       const listContainer = document.getElementById('history-list');
       listContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
       const filter = {
-        truckNumber: document.getElementById('filter-truck').value || null,
-        date: document.getElementById('filter-date').value || null
+        truckNumber: document.getElementById('history-filter-truck').value || null,
+        date: document.getElementById('history-filter-date').value || null
       };
       google.script.run
         .withSuccessHandler(function(result) {
@@ -1014,7 +1437,7 @@
             listContainer.innerHTML = '<div class="empty-state"><p>' + result.message + '</p></div>';
           }
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function() {
           listContainer.innerHTML = '<div class="empty-state"><p>読み込みエラー</p></div>';
         })
         .getHistory(filter);

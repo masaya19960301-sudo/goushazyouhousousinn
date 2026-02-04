@@ -6,6 +6,9 @@
 // スプレッドシートのID（デプロイ時に実際のIDに置き換え）
 const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID';
 
+// 管理者パスワード（デプロイ時に変更してください）
+const ADMIN_PASSWORD = 'admin1234';
+
 // シート名
 const SHEET_NAMES = {
   HISTORY: '配送履歴',
@@ -500,4 +503,76 @@ function formatHistoryForCopy(records) {
   });
 
   return text;
+}
+
+/**
+ * 管理者パスワードを検証
+ */
+function verifyAdminPassword(password) {
+  return password === ADMIN_PASSWORD;
+}
+
+/**
+ * 全ドライバー・車両マスタを取得（管理用）
+ */
+function getAllMasterEntries() {
+  try {
+    const sheet = getOrCreateTruckMasterSheet();
+    const data = sheet.getDataRange().getValues();
+    const entries = [];
+
+    for (let i = 1; i < data.length; i++) {
+      entries.push({
+        rowIndex: i + 1, // スプレッドシートの行番号（1始まり）
+        truckNumber: data[i][0],
+        driverName: data[i][1] || '',
+        vehicleNo: data[i][2] || '',
+        timestamp: data[i][3] || ''
+      });
+    }
+
+    return {
+      success: true,
+      entries: entries
+    };
+  } catch (e) {
+    return {
+      success: false,
+      message: 'エラー: ' + e.message,
+      entries: []
+    };
+  }
+}
+
+/**
+ * マスタエントリを削除
+ */
+function deleteMasterEntry(rowIndex) {
+  try {
+    const sheet = getOrCreateTruckMasterSheet();
+    sheet.deleteRow(rowIndex);
+    return {
+      success: true,
+      message: '削除しました'
+    };
+  } catch (e) {
+    return {
+      success: false,
+      message: 'エラー: ' + e.message
+    };
+  }
+}
+
+/**
+ * ドライバーを管理画面から登録
+ */
+function registerDriverAdmin(truckNumber, name) {
+  return registerDriver(truckNumber, name);
+}
+
+/**
+ * 車両を管理画面から登録
+ */
+function registerVehicleAdmin(truckNumber, vehicleNo) {
+  return registerVehicle(truckNumber, vehicleNo);
 }
