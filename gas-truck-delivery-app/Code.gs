@@ -362,6 +362,43 @@ function formatDateValue(value) {
 }
 
 /**
+ * 時刻を文字列に変換（HH:MM形式）
+ */
+function formatTimeValue(value) {
+  if (!value) return '';
+
+  // 既にDate型の場合
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, 'Asia/Tokyo', 'HH:mm');
+  }
+
+  const strValue = String(value).trim();
+
+  // HH:MM:SS形式の場合
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(strValue)) {
+    const parts = strValue.split(':');
+    return parts[0].padStart(2, '0') + ':' + parts[1];
+  }
+
+  // HH:MM形式の場合
+  if (/^\d{1,2}:\d{2}$/.test(strValue)) {
+    const parts = strValue.split(':');
+    return parts[0].padStart(2, '0') + ':' + parts[1];
+  }
+
+  // 数値の場合（Excelシリアル時刻）
+  const num = parseFloat(strValue);
+  if (!isNaN(num) && num >= 0 && num < 1) {
+    const totalMinutes = Math.round(num * 24 * 60);
+    const hours = Math.floor(totalMinutes / 60) % 24;
+    const mins = totalMinutes % 60;
+    return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+  }
+
+  return strValue;
+}
+
+/**
  * 業務開始記録を保存
  */
 function saveStartRecord(data) {
@@ -517,11 +554,11 @@ function getHistory(filter) {
         yoshaCategory2: row[6] ? String(row[6]) : '',
         helper: row[7] ? String(row[7]) : '',
         departureMeter: row[8] ? String(row[8]) : '',
-        departureTime: row[9] ? String(row[9]) : '',
+        departureTime: formatTimeValue(row[9]),
         destination: row[10] ? String(row[10]) : '',
         returnMeter: row[11] ? String(row[11]) : '',
-        centerArrivalTime: row[12] ? String(row[12]) : '',
-        officeArrivalTime: row[13] ? String(row[13]) : '',
+        centerArrivalTime: formatTimeValue(row[12]),
+        officeArrivalTime: formatTimeValue(row[13]),
         hasCashOnDelivery: row[14] ? String(row[14]) : '',
         useTollRoad: row[15] ? String(row[15]) : '',
         tollRoadInfo: row[16] ? String(row[16]) : '',
