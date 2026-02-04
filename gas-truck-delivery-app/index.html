@@ -292,23 +292,63 @@
     }
     .copy-btn:hover { background: #218838; }
     .copy-btn:disabled { background: #ccc; cursor: not-allowed; }
-    .history-list { max-height: 500px; overflow-y: auto; }
-    .history-item {
-      background: #f8f9fa;
+    .history-list { max-height: none; overflow-y: visible; }
+
+    /* 履歴テーブル */
+    .history-table-container {
+      background: white;
+      border: 1px solid #dee2e6;
       border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 10px;
-      border-left: 4px solid #667eea;
+      overflow: hidden;
+      margin-bottom: 20px;
     }
-    .history-item.start { border-left-color: #28a745; }
-    .history-item.end { border-left-color: #dc3545; }
-    .history-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .history-item-truck { font-weight: 600; font-size: 1.1em; color: #333; }
-    .history-item-type { padding: 4px 10px; border-radius: 15px; font-size: 0.8em; font-weight: 600; }
-    .history-item-type.start { background: #d4edda; color: #28a745; }
-    .history-item-type.end { background: #f8d7da; color: #dc3545; }
-    .history-item-detail { font-size: 0.9em; color: #666; margin: 5px 0; }
-    .history-item-detail strong { color: #333; }
+    .history-table-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 10px 15px;
+      font-weight: 600;
+      font-size: 0.95em;
+    }
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9em;
+    }
+    .history-table td {
+      border: 1px solid #dee2e6;
+      padding: 8px 10px;
+      vertical-align: middle;
+    }
+    .history-table .label-cell {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #495057;
+      width: 30%;
+      white-space: nowrap;
+    }
+    .history-table .value-cell {
+      background: white;
+      color: #333;
+    }
+    .history-table .section-header {
+      background: #e9ecef;
+      font-weight: 600;
+      color: #495057;
+      text-align: center;
+    }
+    .history-table .empty-row td {
+      background: #f8f9fa;
+      height: 10px;
+      border-left: none;
+      border-right: none;
+    }
+    .history-table .toll-header td {
+      background: #fff3cd;
+      font-weight: 600;
+    }
+    .history-table .toll-row td {
+      background: #fffbeb;
+    }
 
     /* 管理画面 */
     .master-entry {
@@ -666,7 +706,7 @@
       </div>
       <div class="card">
         <div class="card-title">履歴一覧</div>
-        <button class="copy-btn" id="copy-btn" onclick="copyHistory()">履歴を一括コピー</button>
+        <button class="copy-btn" id="copy-btn" onclick="copyHistoryTable()">テーブルを一括コピー</button>
         <div id="history-list" class="history-list">
           <div class="empty-state"><p>日付と号車を選択して検索してください</p></div>
         </div>
@@ -1456,6 +1496,96 @@
         .getHistory(filter);
     }
 
+    // 時刻をHH:MM形式に変換
+    function formatTime(timeStr) {
+      if (!timeStr) return '';
+      // 既にHH:MM形式の場合
+      if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+        const parts = timeStr.split(':');
+        return parts[0].padStart(2, '0') + ':' + parts[1];
+      }
+      return timeStr;
+    }
+
+    // 時刻から分を引く
+    function subtractMinutes(timeStr, minutes) {
+      if (!timeStr) return '';
+      const parts = timeStr.split(':');
+      if (parts.length !== 2) return timeStr;
+      let hours = parseInt(parts[0], 10);
+      let mins = parseInt(parts[1], 10);
+      mins -= minutes;
+      while (mins < 0) {
+        mins += 60;
+        hours -= 1;
+      }
+      if (hours < 0) hours += 24;
+      return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+    }
+
+    // 開始と終了レコードをマージ
+    function mergeRecords(records) {
+      const merged = [];
+      const startRecords = records.filter(r => r.recordType === '業務開始');
+      const endRecords = records.filter(r => r.recordType === '業務終了');
+
+      startRecords.forEach(start => {
+        // 同じ日付、号車、ドライバーの終了レコードを探す
+        const matchingEnd = endRecords.find(end =>
+          end.date === start.date &&
+          end.truckNumber === start.truckNumber &&
+          end.driverName === start.driverName
+        );
+        merged.push({
+          date: start.date,
+          vehicleNo: start.vehicleNo || '',
+          truckNumber: start.truckNumber || '',
+          yoshaCategory1: start.yoshaCategory1 || '',
+          yoshaCategory2: start.yoshaCategory2 || '',
+          driverName: start.driverName || '',
+          helper: start.helper || '',
+          departureMeter: start.departureMeter || '',
+          returnMeter: matchingEnd ? matchingEnd.returnMeter || '' : '',
+          departureTime: formatTime(start.departureTime) || '',
+          centerArrivalTime: matchingEnd ? formatTime(matchingEnd.centerArrivalTime) || '' : '',
+          officeArrivalTime: matchingEnd ? formatTime(matchingEnd.officeArrivalTime) || '' : '',
+          useTollRoad: matchingEnd ? matchingEnd.useTollRoad || '' : '',
+          tollRoadInfo: matchingEnd ? matchingEnd.tollRoadInfo || '' : '',
+          hasEnd: !!matchingEnd
+        });
+      });
+
+      // 開始がない終了レコードも追加
+      endRecords.forEach(end => {
+        const hasStart = startRecords.find(start =>
+          start.date === end.date &&
+          start.truckNumber === end.truckNumber &&
+          start.driverName === end.driverName
+        );
+        if (!hasStart) {
+          merged.push({
+            date: end.date,
+            vehicleNo: '',
+            truckNumber: end.truckNumber || '',
+            yoshaCategory1: '',
+            yoshaCategory2: '',
+            driverName: end.driverName || '',
+            helper: '',
+            departureMeter: '',
+            returnMeter: end.returnMeter || '',
+            departureTime: '',
+            centerArrivalTime: formatTime(end.centerArrivalTime) || '',
+            officeArrivalTime: formatTime(end.officeArrivalTime) || '',
+            useTollRoad: end.useTollRoad || '',
+            tollRoadInfo: end.tollRoadInfo || '',
+            hasEnd: true
+          });
+        }
+      });
+
+      return merged;
+    }
+
     function renderHistory(records) {
       const listContainer = document.getElementById('history-list');
       const copyBtn = document.getElementById('copy-btn');
@@ -1465,47 +1595,124 @@
         return;
       }
       copyBtn.disabled = false;
+
+      const mergedRecords = mergeRecords(records);
       let html = '';
-      records.forEach(function(record) {
-        const typeClass = record.recordType === '業務開始' ? 'start' : 'end';
-        let detailHtml = '<div class="history-item-detail"><strong>日付:</strong> ' + record.date + '</div>';
-        detailHtml += '<div class="history-item-detail"><strong>ドライバー:</strong> ' + record.driverName + '</div>';
-        if (record.recordType === '業務開始') {
-          if (record.vehicleNo) detailHtml += '<div class="history-item-detail"><strong>車両No:</strong> ' + record.vehicleNo + '</div>';
-          if (record.yoshaCategory1) detailHtml += '<div class="history-item-detail"><strong>庸車区分①:</strong> ' + record.yoshaCategory1 + '</div>';
-          if (record.yoshaCategory2) detailHtml += '<div class="history-item-detail"><strong>庸車区分②:</strong> ' + record.yoshaCategory2 + '</div>';
-          if (record.helper) detailHtml += '<div class="history-item-detail"><strong>助手:</strong> ' + record.helper + '</div>';
-          detailHtml += '<div class="history-item-detail"><strong>出庫メーター:</strong> ' + record.departureMeter + 'km</div>';
-          detailHtml += '<div class="history-item-detail"><strong>出庫時刻:</strong> ' + record.departureTime + '</div>';
-        } else {
-          if (record.destination) detailHtml += '<div class="history-item-detail"><strong>行き先:</strong> ' + record.destination + '</div>';
-          if (record.returnMeter) detailHtml += '<div class="history-item-detail"><strong>帰庫メーター:</strong> ' + record.returnMeter + 'km</div>';
-          if (record.centerArrivalTime) detailHtml += '<div class="history-item-detail"><strong>配送センター到着:</strong> ' + record.centerArrivalTime + '</div>';
-          if (record.officeArrivalTime) detailHtml += '<div class="history-item-detail"><strong>営業所帰庫:</strong> ' + record.officeArrivalTime + '</div>';
-          if (record.hasCashOnDelivery) detailHtml += '<div class="history-item-detail"><strong>代引き・返金:</strong> ' + record.hasCashOnDelivery + '</div>';
-          if (record.useTollRoad) detailHtml += '<div class="history-item-detail"><strong>有料道路:</strong> ' + record.useTollRoad + '</div>';
+
+      mergedRecords.forEach((data, index) => {
+        const businessEndTime = subtractMinutes(data.officeArrivalTime, 30);
+
+        // 有料道路区間をパース
+        let tollSections = [];
+        if (data.useTollRoad === 'はい' && data.tollRoadInfo) {
+          try {
+            tollSections = JSON.parse(data.tollRoadInfo);
+          } catch (e) {}
         }
-        if (record.notes) detailHtml += '<div class="history-item-detail"><strong>備考:</strong> ' + record.notes + '</div>';
-        html += '<div class="history-item ' + typeClass + '"><div class="history-item-header"><span class="history-item-truck">' + record.truckNumber + '</span><span class="history-item-type ' + typeClass + '">' + record.recordType + '</span></div>' + detailHtml + '</div>';
+
+        html += '<div class="history-table-container" id="history-table-' + index + '">';
+        html += '<div class="history-table-header">' + data.date + ' - ' + data.truckNumber + '</div>';
+        html += '<table class="history-table">';
+
+        // 基本情報
+        html += '<tr><td class="label-cell">車両No</td><td class="value-cell" colspan="2">' + data.vehicleNo + '</td></tr>';
+        html += '<tr><td class="label-cell">号車</td><td class="value-cell" colspan="2">' + data.truckNumber + '</td></tr>';
+        html += '<tr><td class="label-cell">庸車区分①</td><td class="value-cell" colspan="2">' + data.yoshaCategory1 + '</td></tr>';
+        html += '<tr><td class="label-cell">庸車区分②</td><td class="value-cell" colspan="2">' + data.yoshaCategory2 + '</td></tr>';
+        html += '<tr><td class="label-cell">運転者</td><td class="value-cell" colspan="2">' + data.driverName + '</td></tr>';
+        html += '<tr><td class="label-cell">助手</td><td class="value-cell" colspan="2">' + data.helper + '</td></tr>';
+
+        // 空行
+        html += '<tr class="empty-row"><td colspan="3"></td></tr>';
+
+        // メーター
+        html += '<tr><td class="label-cell">出庫メーター</td><td class="value-cell" colspan="2">' + data.departureMeter + '</td></tr>';
+        html += '<tr><td class="label-cell">帰庫メーター</td><td class="value-cell" colspan="2">' + data.returnMeter + '</td></tr>';
+
+        // 空行
+        html += '<tr class="empty-row"><td colspan="3"></td></tr>';
+
+        // 時間
+        html += '<tr><td class="label-cell">出発時間</td><td class="value-cell" colspan="2">' + data.departureTime + '</td></tr>';
+        html += '<tr><td class="label-cell">帰着時間</td><td class="value-cell" colspan="2">' + data.centerArrivalTime + '</td></tr>';
+        html += '<tr><td class="label-cell">業務終了時間</td><td class="value-cell" colspan="2">' + businessEndTime + '</td></tr>';
+        html += '<tr><td class="label-cell">帰庫時間</td><td class="value-cell" colspan="2">' + data.officeArrivalTime + '</td></tr>';
+
+        // 空行
+        html += '<tr class="empty-row"><td colspan="3"></td></tr>';
+
+        // 有料道路
+        html += '<tr class="toll-header"><td class="label-cell">有料道路</td><td class="value-cell" colspan="1"></td><td class="value-cell">高速料金</td></tr>';
+
+        if (tollSections.length > 0) {
+          tollSections.forEach((sec, idx) => {
+            html += '<tr class="toll-row"><td class="value-cell">' + (sec.start || '') + '</td><td class="value-cell">' + (sec.end || '') + '</td><td class="value-cell">' + (sec.fee || '') + '</td></tr>';
+          });
+        } else {
+          html += '<tr class="toll-row"><td class="value-cell"></td><td class="value-cell"></td><td class="value-cell"></td></tr>';
+        }
+
+        html += '</table>';
+        html += '</div>';
       });
+
       listContainer.innerHTML = html;
     }
 
-    function copyHistory() {
+    // テーブルをタブ区切りでコピー
+    function copyHistoryTable() {
       if (!historyRecords || historyRecords.length === 0) {
         showMessage('コピーする履歴がありません', 'error');
         return;
       }
-      google.script.run
-        .withSuccessHandler(function(text) {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => showMessage('履歴をクリップボードにコピーしました', 'success')).catch(() => fallbackCopy(text));
-          } else {
-            fallbackCopy(text);
-          }
-        })
-        .withFailureHandler(() => showMessage('コピーの準備に失敗しました', 'error'))
-        .formatHistoryForCopy(historyRecords);
+
+      const mergedRecords = mergeRecords(historyRecords);
+      let copyText = '';
+
+      mergedRecords.forEach((data, index) => {
+        if (index > 0) copyText += '\n\n';
+
+        const businessEndTime = subtractMinutes(data.officeArrivalTime, 30);
+
+        let tollSections = [];
+        if (data.useTollRoad === 'はい' && data.tollRoadInfo) {
+          try {
+            tollSections = JSON.parse(data.tollRoadInfo);
+          } catch (e) {}
+        }
+
+        // テーブル形式でテキスト生成（タブ区切り）
+        copyText += '車両No\t\t' + data.vehicleNo + '\n';
+        copyText += '号車\t\t' + data.truckNumber + '\n';
+        copyText += '庸車区分①\t\t' + data.yoshaCategory1 + '\n';
+        copyText += '庸車区分②\t\t' + data.yoshaCategory2 + '\n';
+        copyText += '運転者\t\t' + data.driverName + '\n';
+        copyText += '助手\t\t' + data.helper + '\n';
+        copyText += '\n';
+        copyText += '出庫メーター\t\t' + data.departureMeter + '\n';
+        copyText += '帰庫メーター\t\t' + data.returnMeter + '\n';
+        copyText += '\n';
+        copyText += '出発時間\t\t' + data.departureTime + '\n';
+        copyText += '帰着時間\t\t' + data.centerArrivalTime + '\n';
+        copyText += '業務終了時間\t\t' + businessEndTime + '\n';
+        copyText += '帰庫時間\t\t' + data.officeArrivalTime + '\n';
+        copyText += '\n';
+        copyText += '有料道路\t\t高速料金\n';
+
+        if (tollSections.length > 0) {
+          tollSections.forEach(sec => {
+            copyText += (sec.start || '') + '\t' + (sec.end || '') + '\t' + (sec.fee || '') + '\n';
+          });
+        }
+      });
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(copyText)
+          .then(() => showMessage('テーブルをコピーしました', 'success'))
+          .catch(() => fallbackCopy(copyText));
+      } else {
+        fallbackCopy(copyText);
+      }
     }
 
     function fallbackCopy(text) {
