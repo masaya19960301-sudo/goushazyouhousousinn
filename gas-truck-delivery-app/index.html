@@ -418,6 +418,71 @@
     .password-modal-btn.cancel { background: #e0e0e0; color: #333; }
     .password-modal-btn.confirm { background: #667eea; color: white; }
 
+    /* 重複警告モーダル */
+    .duplicate-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1001;
+      justify-content: center;
+      align-items: center;
+    }
+    .duplicate-modal.active { display: flex; }
+    .duplicate-modal-content {
+      background: white;
+      border-radius: 10px;
+      padding: 25px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .duplicate-modal-icon {
+      font-size: 3em;
+      margin-bottom: 15px;
+    }
+    .duplicate-modal-title {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #dc3545;
+    }
+    .duplicate-modal-message {
+      font-size: 0.95em;
+      color: #666;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+    .duplicate-modal-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .duplicate-modal-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.95em;
+    }
+    .duplicate-modal-btn.overwrite {
+      background: #dc3545;
+      color: white;
+    }
+    .duplicate-modal-btn.clear {
+      background: #ffc107;
+      color: #333;
+    }
+    .duplicate-modal-btn.cancel {
+      background: #e0e0e0;
+      color: #333;
+    }
+
     /* ユーティリティ */
     .loading { text-align: center; padding: 20px; color: #666; }
     .spinner {
@@ -551,7 +616,7 @@
             <div class="card-title">基本情報</div>
             <div class="form-group">
               <label>1. 日付を選択してください *</label>
-              <input type="date" id="start-date" required>
+              <input type="date" id="start-date" required onchange="onStartDateChange()">
             </div>
             <div class="form-group">
               <label>2. 号車を選択してください *</label>
@@ -616,7 +681,7 @@
             <div class="card-title">業務終了情報</div>
             <div class="form-group">
               <label>1. 日付を選択してください *</label>
-              <input type="date" id="end-date" required>
+              <input type="date" id="end-date" required onchange="onEndDateChange()">
             </div>
             <div class="form-group">
               <label>2. 号車を選択してください *</label>
@@ -794,6 +859,20 @@
     </div>
   </div>
 
+  <!-- 重複警告モーダル -->
+  <div class="duplicate-modal" id="duplicate-modal">
+    <div class="duplicate-modal-content">
+      <div class="duplicate-modal-icon">⚠️</div>
+      <div class="duplicate-modal-title">データが既に存在します</div>
+      <div class="duplicate-modal-message" id="duplicate-modal-message"></div>
+      <div class="duplicate-modal-buttons">
+        <button class="duplicate-modal-btn overwrite" onclick="handleDuplicateOverwrite()">上書き保存する</button>
+        <button class="duplicate-modal-btn clear" onclick="handleDuplicateClear()">上書きせずクリア</button>
+        <button class="duplicate-modal-btn cancel" onclick="handleDuplicateCancel()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentRecordType = 'start';
     let historyRecords = [];
@@ -804,6 +883,8 @@
     let tollSectionCount = 0;
     const MAX_TOLL_SECTIONS = 10;
     let isAdminAuthenticated = false;
+    let duplicateCheckForm = '';  // 'start' or 'end'
+    let overwriteMode = false;
 
     document.addEventListener('DOMContentLoaded', initializePage);
 
@@ -1093,9 +1174,17 @@
       document.getElementById('start-vehicle-btn').disabled = !truckNumber;
       if (truckNumber) {
         loadTruckData(truckNumber, 'start');
+        checkDuplicate('start');
       } else {
         populateSelect('start-driver', []);
         populateSelect('start-vehicle', []);
+      }
+    }
+
+    function onStartDateChange() {
+      const truckNumber = document.getElementById('start-truck').value;
+      if (truckNumber) {
+        checkDuplicate('start');
       }
     }
 
@@ -1103,9 +1192,72 @@
       const truckNumber = document.getElementById('end-truck').value;
       if (truckNumber) {
         loadTruckData(truckNumber, 'end');
+        checkDuplicate('end');
       } else {
         populateSelect('end-driver', []);
       }
+    }
+
+    function onEndDateChange() {
+      const truckNumber = document.getElementById('end-truck').value;
+      if (truckNumber) {
+        checkDuplicate('end');
+      }
+    }
+
+    function checkDuplicate(formType) {
+      const dateId = formType === 'start' ? 'start-date' : 'end-date';
+      const truckId = formType === 'start' ? 'start-truck' : 'end-truck';
+      const recordType = formType === 'start' ? '業務開始' : '業務終了';
+
+      const date = document.getElementById(dateId).value;
+      const truck = document.getElementById(truckId).value;
+
+      if (!date || !truck) return;
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.exists) {
+            duplicateCheckForm = formType;
+            const typeLabel = formType === 'start' ? '開始' : '終了';
+            document.getElementById('duplicate-modal-message').innerHTML =
+              '既にこの日付の' + truck + 'の<strong>' + typeLabel + '</strong>データは送信されています。<br><br>どうしますか？';
+            document.getElementById('duplicate-modal').classList.add('active');
+          }
+        })
+        .checkExistingRecord(date, truck, recordType);
+    }
+
+    function handleDuplicateOverwrite() {
+      overwriteMode = true;
+      closeDuplicateModal();
+      showMessage('送信時に既存データを上書きします', 'success');
+    }
+
+    function handleDuplicateClear() {
+      overwriteMode = false;
+      closeDuplicateModal();
+      // フォームをクリア
+      if (duplicateCheckForm === 'start') {
+        document.getElementById('start-truck').value = '';
+        document.getElementById('start-driver-btn').disabled = true;
+        document.getElementById('start-vehicle-btn').disabled = true;
+        populateSelect('start-driver', []);
+        populateSelect('start-vehicle', []);
+      } else {
+        document.getElementById('end-truck').value = '';
+        populateSelect('end-driver', []);
+      }
+      showMessage('入力をクリアしました', 'success');
+    }
+
+    function handleDuplicateCancel() {
+      overwriteMode = false;
+      closeDuplicateModal();
+    }
+
+    function closeDuplicateModal() {
+      document.getElementById('duplicate-modal').classList.remove('active');
     }
 
     function loadTruckData(truckNumber, formType) {
@@ -1387,10 +1539,30 @@
         departureTime: document.getElementById('start-hour').value + ':' + document.getElementById('start-minute').value,
         notes: document.getElementById('start-notes').value
       };
+
+      // 上書きモードの場合、既存データを削除してから保存
+      if (overwriteMode) {
+        google.script.run
+          .withSuccessHandler(function() {
+            saveStartRecordAfterDelete(data, submitBtn);
+          })
+          .withFailureHandler(function() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '業務開始を送信';
+            showMessage('上書き処理に失敗しました', 'error');
+          })
+          .deleteExistingRecord(data.date, data.truckNumber, '業務開始');
+      } else {
+        saveStartRecordAfterDelete(data, submitBtn);
+      }
+    }
+
+    function saveStartRecordAfterDelete(data, submitBtn) {
       google.script.run
         .withSuccessHandler(function(result) {
           submitBtn.disabled = false;
           submitBtn.textContent = '業務開始を送信';
+          overwriteMode = false;
           if (result.success) {
             showMessage(result.message, 'success');
             document.getElementById('start-meter').value = '';
@@ -1403,6 +1575,7 @@
         .withFailureHandler(function() {
           submitBtn.disabled = false;
           submitBtn.textContent = '業務開始を送信';
+          overwriteMode = false;
           showMessage('送信に失敗しました', 'error');
         })
         .saveStartRecord(data);
@@ -1441,10 +1614,30 @@
         tollRoadSections: useToll?.value === 'はい' ? getTollSections() : [],
         notes: document.getElementById('end-notes').value
       };
+
+      // 上書きモードの場合、既存データを削除してから保存
+      if (overwriteMode) {
+        google.script.run
+          .withSuccessHandler(function() {
+            saveEndRecordAfterDelete(data, submitBtn);
+          })
+          .withFailureHandler(function() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '業務終了を送信';
+            showMessage('上書き処理に失敗しました', 'error');
+          })
+          .deleteExistingRecord(data.date, data.truckNumber, '業務終了');
+      } else {
+        saveEndRecordAfterDelete(data, submitBtn);
+      }
+    }
+
+    function saveEndRecordAfterDelete(data, submitBtn) {
       google.script.run
         .withSuccessHandler(function(result) {
           submitBtn.disabled = false;
           submitBtn.textContent = '業務終了を送信';
+          overwriteMode = false;
           if (result.success) {
             showMessage(result.message, 'success');
             document.getElementById('end-meter').value = '';
@@ -1463,6 +1656,7 @@
         .withFailureHandler(function() {
           submitBtn.disabled = false;
           submitBtn.textContent = '業務終了を送信';
+          overwriteMode = false;
           showMessage('送信に失敗しました', 'error');
         })
         .saveEndRecord(data);

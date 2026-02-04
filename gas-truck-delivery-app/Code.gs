@@ -607,6 +607,56 @@ function getHistory(filter) {
 }
 
 /**
+ * 既存レコードをチェック
+ */
+function checkExistingRecord(date, truckNumber, recordType) {
+  try {
+    const sheet = getOrCreateHistorySheet();
+    const data = sheet.getDataRange().getValues();
+    const searchDate = String(date).trim();
+    const searchTruck = String(truckNumber).trim();
+
+    for (let i = 1; i < data.length; i++) {
+      const rowDate = formatDateValue(data[i][1]);
+      const rowTruck = data[i][2] ? String(data[i][2]).trim() : '';
+      const rowType = data[i][17] ? String(data[i][17]) : '';
+
+      if (rowDate === searchDate && rowTruck === searchTruck && rowType === recordType) {
+        return {
+          exists: true,
+          rowIndex: i + 1,
+          recordId: data[i][0]
+        };
+      }
+    }
+
+    return { exists: false };
+  } catch (e) {
+    Logger.log('checkExistingRecord error: ' + e.message);
+    return { exists: false };
+  }
+}
+
+/**
+ * 既存レコードを削除
+ */
+function deleteExistingRecord(date, truckNumber, recordType) {
+  try {
+    const check = checkExistingRecord(date, truckNumber, recordType);
+    if (check.exists) {
+      const sheet = getOrCreateHistorySheet();
+      sheet.deleteRow(check.rowIndex);
+      SpreadsheetApp.flush();
+      return { success: true };
+    }
+    return { success: true };
+  } catch (e) {
+    Logger.log('deleteExistingRecord error: ' + e.message);
+    return { success: false, message: e.message };
+  }
+}
+
+/**
  * 履歴をテキスト形式で取得（コピー用）
  */
 function formatHistoryForCopy(records) {
