@@ -3,9 +3,6 @@
  * Google Apps Script サーバーサイドコード
  */
 
-// スプレッドシートのID（デプロイ時に実際のIDに置き換え）
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID';
-
 // 管理者パスワード（デプロイ時に変更してください）
 const ADMIN_PASSWORD = 'admin1234';
 
@@ -26,17 +23,40 @@ function doGet() {
 }
 
 /**
- * スプレッドシートを取得
+ * スプレッドシートを取得（スクリプトプロパティでIDを永続化）
  */
 function getSpreadsheet() {
-  let ss;
-  try {
-    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  } catch (e) {
-    ss = SpreadsheetApp.create('配送業務管理データ');
-    Logger.log('新しいスプレッドシートを作成しました: ' + ss.getId());
+  const props = PropertiesService.getScriptProperties();
+  let spreadsheetId = props.getProperty('SPREADSHEET_ID');
+
+  // 既存のスプレッドシートIDがある場合
+  if (spreadsheetId) {
+    try {
+      return SpreadsheetApp.openById(spreadsheetId);
+    } catch (e) {
+      // IDは保存されているがスプレッドシートが削除された場合
+      Logger.log('保存されたスプレッドシートが見つかりません。新規作成します。');
+    }
   }
+
+  // 新しいスプレッドシートを作成
+  const ss = SpreadsheetApp.create('配送業務管理データ');
+  const newId = ss.getId();
+
+  // スクリプトプロパティに保存
+  props.setProperty('SPREADSHEET_ID', newId);
+  Logger.log('新しいスプレッドシートを作成しました: ' + newId);
+  Logger.log('スプレッドシートURL: ' + ss.getUrl());
+
   return ss;
+}
+
+/**
+ * 現在使用中のスプレッドシートURLを取得（管理用）
+ */
+function getSpreadsheetUrl() {
+  const ss = getSpreadsheet();
+  return ss.getUrl();
 }
 
 /**
@@ -118,14 +138,18 @@ function getDriversByTruck(truckNumber) {
     const sheet = getOrCreateTruckMasterSheet();
     const data = sheet.getDataRange().getValues();
     const drivers = [];
+    const searchTruck = String(truckNumber).trim();
 
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === truckNumber && data[i][1]) {
+      const rowTruck = String(data[i][0]).trim();
+      const driverName = data[i][1] ? String(data[i][1]).trim() : '';
+
+      if (rowTruck === searchTruck && driverName) {
         // 重複チェック
-        if (!drivers.find(d => d.name === data[i][1])) {
+        if (!drivers.find(d => d.name === driverName)) {
           drivers.push({
-            id: data[i][1],
-            name: data[i][1]
+            id: driverName,
+            name: driverName
           });
         }
       }
@@ -145,14 +169,18 @@ function getVehiclesByTruck(truckNumber) {
     const sheet = getOrCreateTruckMasterSheet();
     const data = sheet.getDataRange().getValues();
     const vehicles = [];
+    const searchTruck = String(truckNumber).trim();
 
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === truckNumber && data[i][2]) {
+      const rowTruck = String(data[i][0]).trim();
+      const vehicleNo = data[i][2] ? String(data[i][2]).trim() : '';
+
+      if (rowTruck === searchTruck && vehicleNo) {
         // 重複チェック
-        if (!vehicles.find(v => v.name === data[i][2])) {
+        if (!vehicles.find(v => v.name === vehicleNo)) {
           vehicles.push({
-            id: data[i][2],
-            name: data[i][2]
+            id: vehicleNo,
+            name: vehicleNo
           });
         }
       }
@@ -407,37 +435,41 @@ function getHistory(filter) {
     }
 
     let records = [];
+    const filterTruck = filter && filter.truckNumber ? String(filter.truckNumber).trim() : null;
+    const filterDate = filter && filter.date ? String(filter.date).trim() : null;
 
     for (let i = data.length - 1; i >= 1; i--) {
       const row = data[i];
+
+      // 空行をスキップ
+      if (!row[0]) continue;
+
       const record = {
-        recordId: row[0],
-        date: row[1],
-        truckNumber: row[2],
-        driverName: row[3],
-        vehicleNo: row[4],
-        yoshaCategory1: row[5],
-        yoshaCategory2: row[6],
-        helper: row[7],
-        departureMeter: row[8],
-        departureTime: row[9],
-        destination: row[10],
-        returnMeter: row[11],
-        centerArrivalTime: row[12],
-        officeArrivalTime: row[13],
-        hasCashOnDelivery: row[14],
-        useTollRoad: row[15],
-        tollRoadInfo: row[16],
-        recordType: row[17],
-        notes: row[18],
-        timestamp: row[19]
+        recordId: row[0] ? String(row[0]) : '',
+        date: row[1] ? String(row[1]) : '',
+        truckNumber: row[2] ? String(row[2]).trim() : '',
+        driverName: row[3] ? String(row[3]).trim() : '',
+        vehicleNo: row[4] ? String(row[4]).trim() : '',
+        yoshaCategory1: row[5] ? String(row[5]) : '',
+        yoshaCategory2: row[6] ? String(row[6]) : '',
+        helper: row[7] ? String(row[7]) : '',
+        departureMeter: row[8] ? String(row[8]) : '',
+        departureTime: row[9] ? String(row[9]) : '',
+        destination: row[10] ? String(row[10]) : '',
+        returnMeter: row[11] ? String(row[11]) : '',
+        centerArrivalTime: row[12] ? String(row[12]) : '',
+        officeArrivalTime: row[13] ? String(row[13]) : '',
+        hasCashOnDelivery: row[14] ? String(row[14]) : '',
+        useTollRoad: row[15] ? String(row[15]) : '',
+        tollRoadInfo: row[16] ? String(row[16]) : '',
+        recordType: row[17] ? String(row[17]) : '',
+        notes: row[18] ? String(row[18]) : '',
+        timestamp: row[19] ? String(row[19]) : ''
       };
 
       // フィルター適用
-      if (filter) {
-        if (filter.truckNumber && record.truckNumber !== filter.truckNumber) continue;
-        if (filter.date && record.date !== filter.date) continue;
-      }
+      if (filterTruck && record.truckNumber !== filterTruck) continue;
+      if (filterDate && record.date !== filterDate) continue;
 
       records.push(record);
     }
@@ -522,11 +554,14 @@ function getAllMasterEntries() {
     const entries = [];
 
     for (let i = 1; i < data.length; i++) {
+      // 空行をスキップ
+      if (!data[i][0] && !data[i][1] && !data[i][2]) continue;
+
       entries.push({
         rowIndex: i + 1, // スプレッドシートの行番号（1始まり）
-        truckNumber: data[i][0],
-        driverName: data[i][1] || '',
-        vehicleNo: data[i][2] || '',
+        truckNumber: data[i][0] ? String(data[i][0]).trim() : '',
+        driverName: data[i][1] ? String(data[i][1]).trim() : '',
+        vehicleNo: data[i][2] ? String(data[i][2]).trim() : '',
         timestamp: data[i][3] || ''
       });
     }

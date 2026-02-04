@@ -881,7 +881,7 @@
       const truckFilter = document.getElementById('admin-filter-truck').value;
       let filtered = allMasterEntries;
       if (truckFilter) {
-        filtered = allMasterEntries.filter(e => e.truckNumber === truckFilter);
+        filtered = allMasterEntries.filter(e => String(e.truckNumber).trim() === String(truckFilter).trim());
       }
       renderMasterEntries(filtered);
     }
