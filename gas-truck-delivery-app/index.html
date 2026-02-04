@@ -1513,8 +1513,15 @@
         return parts[0].padStart(2, '0') + ':' + parts[1];
       }
 
-      // Date文字列の場合（例: "Sat Jan 01 2000 08:30:00 GMT+0900"）
-      if (str.includes('GMT') || str.includes('T')) {
+      // Date文字列の場合（例: "Sat Dec 30 1899 08:30:00 GMT+0900"）
+      // 正規表現で時刻部分を抽出
+      const timeMatch = str.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+      if (timeMatch) {
+        return timeMatch[1].padStart(2, '0') + ':' + timeMatch[2];
+      }
+
+      // Date文字列の場合（new Dateでパース）
+      if (str.includes('GMT') || str.includes('T') || str.includes('1899')) {
         try {
           const date = new Date(str);
           if (!isNaN(date.getTime())) {

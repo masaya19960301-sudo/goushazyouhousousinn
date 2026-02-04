@@ -367,9 +367,13 @@ function formatDateValue(value) {
 function formatTimeValue(value) {
   if (!value) return '';
 
-  // 既にDate型の場合
-  if (value instanceof Date) {
-    return Utilities.formatDate(value, 'Asia/Tokyo', 'HH:mm');
+  // オブジェクト（Date含む）の場合、まずUtilities.formatDateを試す
+  if (typeof value === 'object') {
+    try {
+      return Utilities.formatDate(value, 'Asia/Tokyo', 'HH:mm');
+    } catch (e) {
+      Logger.log('formatTimeValue object error: ' + e.message);
+    }
   }
 
   const strValue = String(value).trim();
@@ -393,6 +397,15 @@ function formatTimeValue(value) {
     const hours = Math.floor(totalMinutes / 60) % 24;
     const mins = totalMinutes % 60;
     return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+  }
+
+  // "GMT"や"1899"を含む日付文字列の場合
+  if (strValue.includes('GMT') || strValue.includes('1899') || strValue.includes('Mon ') || strValue.includes('Tue ') || strValue.includes('Wed ') || strValue.includes('Thu ') || strValue.includes('Fri ') || strValue.includes('Sat ') || strValue.includes('Sun ')) {
+    // 時刻部分を正規表現で抽出（HH:MM:SS）
+    const timeMatch = strValue.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+    if (timeMatch) {
+      return timeMatch[1].padStart(2, '0') + ':' + timeMatch[2];
+    }
   }
 
   return strValue;
