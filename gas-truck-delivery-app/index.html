@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>配送業務管理</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 10px;
+    }
+
+    /* ヘッダー */
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+
+    .header h1 {
+      font-size: 1.4em;
+      margin-bottom: 5px;
+    }
+
+    .header .subtitle {
+      font-size: 0.85em;
+      opacity: 0.9;
+    }
+
+    /* タブナビゲーション */
+    .tab-nav {
+      display: flex;
+      background: white;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 15px;
+      border: none;
+      background: white;
+      font-size: 1em;
+      font-weight: 600;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tab-btn.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* カード */
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .card-title {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    /* フォーム要素 */
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #555;
+      font-size: 0.9em;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* 記録種別ボタン */
+    .record-type-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .record-type-btn {
+      flex: 1;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      background: white;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .record-type-btn.start {
+      color: #28a745;
+    }
+
+    .record-type-btn.end {
+      color: #dc3545;
+    }
+
+    .record-type-btn.active.start {
+      background: #28a745;
+      border-color: #28a745;
+      color: white;
+    }
+
+    .record-type-btn.active.end {
+      background: #dc3545;
+      border-color: #dc3545;
+      color: white;
+    }
+
+    /* 送信ボタン */
+    .submit-btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* 履歴フィルター */
+    .filter-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      flex: 1;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    /* コピーボタン */
+    .copy-btn {
+      width: 100%;
+      padding: 12px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 15px;
+      transition: background 0.3s;
+    }
+
+    .copy-btn:hover {
+      background: #218838;
+    }
+
+    .copy-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* 履歴リスト */
+    .history-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-left: 4px solid #667eea;
+    }
+
+    .history-item.start {
+      border-left-color: #28a745;
+    }
+
+    .history-item.end {
+      border-left-color: #dc3545;
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .history-item-truck {
+      font-weight: 600;
+      font-size: 1.1em;
+      color: #333;
+    }
+
+    .history-item-type {
+      padding: 4px 10px;
+      border-radius: 15px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+
+    .history-item-type.start {
+      background: #d4edda;
+      color: #28a745;
+    }
+
+    .history-item-type.end {
+      background: #f8d7da;
+      color: #dc3545;
+    }
+
+    .history-item-detail {
+      font-size: 0.9em;
+      color: #666;
+      margin: 5px 0;
+    }
+
+    .history-item-detail strong {
+      color: #333;
+    }
+
+    /* ローディング */
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* メッセージ */
+    .message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .message.info {
+      background: #cce5ff;
+      color: #004085;
+    }
+
+    /* 空の状態 */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 3em;
+      margin-bottom: 10px;
+    }
+
+    /* 現在時刻表示 */
+    .current-time {
+      text-align: center;
+      padding: 10px;
+      background: #e9ecef;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #495057;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <div class="header">
+      <h1>配送業務管理</h1>
+      <div class="subtitle">トラック業務開始・終了記録</div>
+    </div>
+
+    <!-- タブナビゲーション -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('input')">業務記録</button>
+      <button class="tab-btn" onclick="switchTab('history')">履歴</button>
+    </div>
+
+    <!-- メッセージ表示エリア -->
+    <div id="message" class="message" style="display: none;"></div>
+
+    <!-- 入力タブ -->
+    <div id="input-tab" class="tab-content active">
+      <!-- 現在時刻 -->
+      <div class="current-time" id="current-time"></div>
+
+      <!-- 記録種別選択 -->
+      <div class="card">
+        <div class="card-title">記録種別</div>
+        <div class="record-type-group">
+          <button class="record-type-btn start active" onclick="selectRecordType('業務開始')">
+            ▶ 業務開始
+          </button>
+          <button class="record-type-btn end" onclick="selectRecordType('業務終了')">
+            ■ 業務終了
+          </button>
+        </div>
+      </div>
+
+      <!-- 入力フォーム -->
+      <div class="card">
+        <div class="card-title">業務情報</div>
+        <form id="record-form">
+          <div class="form-group">
+            <label for="truck-number">号車 *</label>
+            <select id="truck-number" required>
+              <option value="">選択してください</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="driver-name">ドライバー名 *</label>
+            <input type="text" id="driver-name" placeholder="例：山田太郎" required>
+          </div>
+
+          <div class="form-group">
+            <label for="record-date">日付 *</label>
+            <input type="date" id="record-date" required>
+          </div>
+
+          <div class="form-group">
+            <label for="record-time">時刻 *</label>
+            <input type="time" id="record-time" required>
+          </div>
+
+          <div class="form-group">
+            <label for="mileage">走行距離 (km)</label>
+            <input type="number" id="mileage" placeholder="例：12345" min="0" step="1">
+          </div>
+
+          <div class="form-group">
+            <label for="notes">備考</label>
+            <textarea id="notes" placeholder="特記事項があれば入力"></textarea>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submit-btn">
+            送信する
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 履歴タブ -->
+    <div id="history-tab" class="tab-content">
+      <div class="card">
+        <div class="card-title">履歴検索</div>
+        <div class="filter-group">
+          <select id="filter-truck">
+            <option value="">全ての号車</option>
+          </select>
+          <input type="date" id="filter-date" placeholder="日付で絞り込み">
+        </div>
+        <button class="submit-btn" onclick="loadHistory()" style="margin-bottom: 10px;">
+          検索
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">履歴一覧</div>
+        <button class="copy-btn" id="copy-btn" onclick="copyHistory()">
+          📋 履歴を一括コピー
+        </button>
+        <div id="history-list" class="history-list">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>読み込み中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // グローバル変数
+    let currentRecordType = '業務開始';
+    let historyRecords = [];
+
+    // 初期化
+    document.addEventListener('DOMContentLoaded', function() {
+      initializePage();
+    });
+
+    function initializePage() {
+      // 号車リストを読み込み
+      loadTruckList();
+
+      // 現在の日付と時刻を設定
+      setCurrentDateTime();
+
+      // 現在時刻の表示を更新
+      updateCurrentTimeDisplay();
+      setInterval(updateCurrentTimeDisplay, 1000);
+
+      // フォーム送信イベント
+      document.getElementById('record-form').addEventListener('submit', handleSubmit);
+
+      // ドライバー名を localStorage から復元
+      const savedDriverName = localStorage.getItem('driverName');
+      if (savedDriverName) {
+        document.getElementById('driver-name').value = savedDriverName;
+      }
+
+      // 号車を localStorage から復元
+      const savedTruck = localStorage.getItem('truckNumber');
+      if (savedTruck) {
+        setTimeout(() => {
+          document.getElementById('truck-number').value = savedTruck;
+        }, 100);
+      }
+    }
+
+    // 号車リストを読み込み
+    function loadTruckList() {
+      google.script.run
+        .withSuccessHandler(function(trucks) {
+          const select = document.getElementById('truck-number');
+          const filterSelect = document.getElementById('filter-truck');
+
+          trucks.forEach(function(truck) {
+            const option = document.createElement('option');
+            option.value = truck.name;
+            option.textContent = truck.name;
+            select.appendChild(option);
+
+            const filterOption = option.cloneNode(true);
+            filterSelect.appendChild(filterOption);
+          });
+        })
+        .withFailureHandler(function(error) {
+          showMessage('号車リストの読み込みに失敗しました', 'error');
+        })
+        .getTruckList();
+    }
+
+    // 現在の日付と時刻を設定
+    function setCurrentDateTime() {
+      const now = new Date();
+
+      // 日付
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      document.getElementById('record-date').value = `${year}-${month}-${day}`;
+
+      // 時刻
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('record-time').value = `${hours}:${minutes}`;
+    }
+
+    // 現在時刻表示を更新
+    function updateCurrentTimeDisplay() {
+      const now = new Date();
+      const options = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      };
+      document.getElementById('current-time').textContent = now.toLocaleString('ja-JP', options);
+    }
+
+    // タブ切り替え
+    function switchTab(tabName) {
+      // タブボタンの状態を更新
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      if (tabName === 'input') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('input-tab').classList.add('active');
+        setCurrentDateTime();
+      } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('history-tab').classList.add('active');
+        loadHistory();
+      }
+    }
+
+    // 記録種別選択
+    function selectRecordType(type) {
+      currentRecordType = type;
+
+      document.querySelectorAll('.record-type-btn').forEach(btn => btn.classList.remove('active'));
+
+      if (type === '業務開始') {
+        document.querySelector('.record-type-btn.start').classList.add('active');
+      } else {
+        document.querySelector('.record-type-btn.end').classList.add('active');
+      }
+    }
+
+    // フォーム送信処理
+    function handleSubmit(e) {
+      e.preventDefault();
+
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '送信中...';
+
+      const data = {
+        truckNumber: document.getElementById('truck-number').value,
+        driverName: document.getElementById('driver-name').value,
+        recordType: currentRecordType,
+        date: document.getElementById('record-date').value,
+        time: document.getElementById('record-time').value,
+        mileage: document.getElementById('mileage').value,
+        notes: document.getElementById('notes').value
+      };
+
+      // ドライバー名と号車を localStorage に保存
+      localStorage.setItem('driverName', data.driverName);
+      localStorage.setItem('truckNumber', data.truckNumber);
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '送信する';
+
+          if (result.success) {
+            showMessage(result.message, 'success');
+            // フォームをリセット（ドライバー名と号車は保持）
+            document.getElementById('mileage').value = '';
+            document.getElementById('notes').value = '';
+            setCurrentDateTime();
+          } else {
+            showMessage(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '送信する';
+          showMessage('送信に失敗しました: ' + error.message, 'error');
+        })
+        .saveRecord(data);
+    }
+
+    // 履歴を読み込み
+    function loadHistory() {
+      const listContainer = document.getElementById('history-list');
+      listContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
+
+      const filter = {
+        truckNumber: document.getElementById('filter-truck').value || null,
+        date: document.getElementById('filter-date').value || null
+      };
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            historyRecords = result.records;
+            renderHistory(result.records);
+          } else {
+            listContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>' + result.message + '</p></div>';
+          }
+        })
+        .withFailureHandler(function(error) {
+          listContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><p>読み込みエラー</p></div>';
+        })
+        .getHistory(filter);
+    }
+
+    // 履歴を描画
+    function renderHistory(records) {
+      const listContainer = document.getElementById('history-list');
+      const copyBtn = document.getElementById('copy-btn');
+
+      if (!records || records.length === 0) {
+        listContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>履歴がありません</p></div>';
+        copyBtn.disabled = true;
+        return;
+      }
+
+      copyBtn.disabled = false;
+
+      let html = '';
+      records.forEach(function(record) {
+        const typeClass = record.recordType === '業務開始' ? 'start' : 'end';
+        html += `
+          <div class="history-item ${typeClass}">
+            <div class="history-item-header">
+              <span class="history-item-truck">${record.truckNumber}</span>
+              <span class="history-item-type ${typeClass}">${record.recordType}</span>
+            </div>
+            <div class="history-item-detail">
+              <strong>日時:</strong> ${record.date} ${record.time}
+            </div>
+            <div class="history-item-detail">
+              <strong>ドライバー:</strong> ${record.driverName}
+            </div>
+            ${record.mileage ? `<div class="history-item-detail"><strong>走行距離:</strong> ${record.mileage}km</div>` : ''}
+            ${record.notes ? `<div class="history-item-detail"><strong>備考:</strong> ${record.notes}</div>` : ''}
+          </div>
+        `;
+      });
+
+      listContainer.innerHTML = html;
+    }
+
+    // 履歴を一括コピー
+    function copyHistory() {
+      if (!historyRecords || historyRecords.length === 0) {
+        showMessage('コピーする履歴がありません', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(text) {
+          // クリップボードにコピー
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+              .then(function() {
+                showMessage('履歴をクリップボードにコピーしました', 'success');
+              })
+              .catch(function() {
+                fallbackCopy(text);
+              });
+          } else {
+            fallbackCopy(text);
+          }
+        })
+        .withFailureHandler(function(error) {
+          showMessage('コピーの準備に失敗しました', 'error');
+        })
+        .formatHistoryForCopy(historyRecords);
+    }
+
+    // フォールバックコピー
+    function fallbackCopy(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      try {
+        document.execCommand('copy');
+        showMessage('履歴をクリップボードにコピーしました', 'success');
+      } catch (e) {
+        showMessage('コピーに失敗しました。手動でコピーしてください', 'error');
+      }
+
+      document.body.removeChild(textarea);
+    }
+
+    // メッセージ表示
+    function showMessage(text, type) {
+      const messageEl = document.getElementById('message');
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + type;
+      messageEl.style.display = 'block';
+
+      setTimeout(function() {
+        messageEl.style.display = 'none';
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
