@@ -689,7 +689,10 @@
             </div>
             <div class="form-group">
               <label>ドライバー名を選択してください *</label>
-              <select id="end-driver" required><option value="">選択してください</option></select>
+              <div class="input-with-button">
+                <select id="end-driver" required><option value="">選択してください</option></select>
+                <button type="button" class="register-btn" id="end-driver-btn" onclick="openModal('driver', 'end')" disabled>新規登録</button>
+              </div>
             </div>
             <div class="form-group">
               <label>3. 業務終了後の行き先を選択してください *</label>
@@ -1190,6 +1193,7 @@
 
     function onEndTruckChange() {
       const truckNumber = document.getElementById('end-truck').value;
+      document.getElementById('end-driver-btn').disabled = !truckNumber;
       if (truckNumber) {
         loadTruckData(truckNumber, 'end');
         checkDuplicate('end');
@@ -1246,6 +1250,7 @@
         populateSelect('start-vehicle', []);
       } else {
         document.getElementById('end-truck').value = '';
+        document.getElementById('end-driver-btn').disabled = true;
         populateSelect('end-driver', []);
       }
       showMessage('入力をクリアしました', 'success');
