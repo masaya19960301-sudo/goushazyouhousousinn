@@ -901,15 +901,76 @@ function deleteMasterEntry(rowIndex) {
 }
 
 /**
- * ドライバーを管理画面から登録
+ * 名前で号車マスタからエントリを削除
  */
-function registerDriverAdmin(truckNumber, name) {
-  return registerDriver(truckNumber, name);
+function deleteByName(truckNumber, type, name) {
+  try {
+    const sheet = getOrCreateTruckMasterSheet();
+    const data = sheet.getDataRange().getValues();
+    const searchTruck = String(truckNumber).trim();
+    const searchName = String(name).trim();
+
+    // 下から上に削除（行番号がずれないように）
+    for (let i = data.length - 1; i >= 1; i--) {
+      const rowTruck = String(data[i][0]).trim();
+      if (rowTruck !== searchTruck) continue;
+
+      if (type === 'driver') {
+        const driverName = data[i][1] ? String(data[i][1]).trim() : '';
+        if (driverName === searchName) {
+          sheet.deleteRow(i + 1);
+          SpreadsheetApp.flush();
+          return { success: true, message: '削除しました' };
+        }
+      } else if (type === 'vehicle') {
+        const vehicleNo = data[i][2] ? String(data[i][2]).trim() : '';
+        if (vehicleNo === searchName) {
+          sheet.deleteRow(i + 1);
+          SpreadsheetApp.flush();
+          return { success: true, message: '削除しました' };
+        }
+      }
+    }
+
+    return { success: false, message: '該当するデータが見つかりません' };
+  } catch (e) {
+    Logger.log('deleteByName error: ' + e.message);
+    return { success: false, message: 'エラー: ' + e.message };
+  }
 }
 
 /**
- * 車両を管理画面から登録
+ * 号車のデータを一括リセット（ドライバー・車両No・設定）
  */
-function registerVehicleAdmin(truckNumber, vehicleNo) {
-  return registerVehicle(truckNumber, vehicleNo);
+function resetTruckData(truckNumber) {
+  try {
+    const searchTruck = String(truckNumber).trim();
+
+    // 号車マスタからドライバー・車両を削除
+    const masterSheet = getOrCreateTruckMasterSheet();
+    const masterData = masterSheet.getDataRange().getValues();
+    for (let i = masterData.length - 1; i >= 1; i--) {
+      const rowTruck = String(masterData[i][0]).trim();
+      if (rowTruck === searchTruck) {
+        masterSheet.deleteRow(i + 1);
+      }
+    }
+
+    // 号車設定をデフォルトに戻す
+    const settingsSheet = getOrCreateTruckSettingsSheet();
+    const settingsData = settingsSheet.getDataRange().getValues();
+    for (let i = 1; i < settingsData.length; i++) {
+      const rowTruck = String(settingsData[i][0]).trim();
+      if (rowTruck === searchTruck) {
+        settingsSheet.getRange(i + 1, 2, 1, 3).setValues([['営業所到着', 30, '']]);
+        break;
+      }
+    }
+
+    SpreadsheetApp.flush();
+    return { success: true, message: searchTruck + ' のデータをリセットしました' };
+  } catch (e) {
+    Logger.log('resetTruckData error: ' + e.message);
+    return { success: false, message: 'エラー: ' + e.message };
+  }
 }

@@ -284,9 +284,10 @@
       color: white;
       border: none;
       border-radius: 8px;
-      font-size: 1em;
+      font-size: 0.95em;
       font-weight: 600;
       cursor: pointer;
+      margin-top: 10px;
       margin-bottom: 15px;
       transition: background 0.3s;
     }
@@ -478,11 +479,6 @@
       background: #ffc107;
       color: #333;
     }
-    .duplicate-modal-btn.cancel {
-      background: #e0e0e0;
-      color: #333;
-    }
-
     /* ユーティリティ */
     .loading { text-align: center; padding: 20px; color: #666; }
     .spinner {
@@ -542,20 +538,69 @@
     #start-form-section.active, #end-form-section.active { display: block; }
 
     .tab-buttons { display: flex; gap: 10px; margin-bottom: 15px; }
-    .tab-btn-admin {
+
+    /* 管理画面 */
+    .admin-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: #f9f9f9;
+    }
+    .admin-item-name {
+      font-weight: 500;
+      font-size: 0.95em;
+    }
+    .admin-item .delete-btn {
+      padding: 6px 14px;
+      font-size: 0.85em;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .admin-add-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .admin-add-row input {
       flex: 1;
-      padding: 12px;
+      padding: 10px 12px;
       border: 2px solid #e0e0e0;
       border-radius: 8px;
-      background: white;
+      font-size: 0.95em;
+    }
+    .admin-add-btn {
+      padding: 10px 20px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s;
+      white-space: nowrap;
     }
-    .tab-btn-admin.active {
-      background: #667eea;
-      border-color: #667eea;
+    .reset-all-btn {
+      width: 100%;
+      padding: 14px;
+      background: #dc3545;
       color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .admin-empty {
+      text-align: center;
+      padding: 12px;
+      color: #999;
+      font-size: 0.9em;
     }
   </style>
 </head>
@@ -774,7 +819,6 @@
       </div>
       <div class="card">
         <div class="card-title">履歴一覧</div>
-        <button class="copy-btn" id="copy-btn" onclick="copyHistoryTable()">テーブルを一括コピー</button>
         <div id="history-list" class="history-list">
           <div class="empty-state"><p>日付と号車を選択して検索してください</p></div>
         </div>
@@ -784,87 +828,63 @@
     <!-- 管理画面 -->
     <div class="screen" id="admin-screen">
       <div class="card">
-        <div class="card-title">ドライバー・車両管理</div>
-        <div class="tab-buttons">
-          <button class="tab-btn-admin active" onclick="switchAdminTab('list')">一覧</button>
-          <button class="tab-btn-admin" onclick="switchAdminTab('register')">新規登録</button>
-          <button class="tab-btn-admin" onclick="switchAdminTab('settings')">号車設定</button>
+        <div class="card-title">号車管理</div>
+        <div class="form-group">
+          <label>号車を選択してください</label>
+          <select id="admin-truck-select" onchange="onAdminTruckSelect()"><option value="">選択してください</option></select>
         </div>
       </div>
 
-      <!-- 一覧タブ -->
-      <div id="admin-list-tab">
+      <!-- 号車詳細（号車選択後に表示） -->
+      <div id="admin-truck-detail" class="hidden">
+        <!-- ドライバー管理 -->
         <div class="card">
-          <div class="card-title">登録済み一覧</div>
-          <div class="form-group">
-            <label>号車でフィルタ</label>
-            <select id="admin-filter-truck" onchange="filterMasterEntries()"><option value="">全ての号車</option></select>
-          </div>
-          <div id="master-entries-list">
-            <div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>
+          <div class="card-title">ドライバー一覧</div>
+          <div id="admin-driver-list"></div>
+          <div class="admin-add-row">
+            <input type="text" id="admin-new-driver" placeholder="例：山田">
+            <button class="admin-add-btn" onclick="addDriverFromAdmin()">追加</button>
           </div>
         </div>
-      </div>
 
-      <!-- 登録タブ -->
-      <div id="admin-register-tab" class="hidden">
+        <!-- 車両No管理 -->
         <div class="card">
-          <div class="card-title">新規登録</div>
-          <div class="form-group">
-            <label>号車を選択 *</label>
-            <select id="admin-truck" required><option value="">選択してください</option></select>
+          <div class="card-title">車両No一覧</div>
+          <div id="admin-vehicle-list"></div>
+          <div class="admin-add-row">
+            <input type="text" id="admin-new-vehicle" placeholder="例：1234" maxlength="4" pattern="[0-9]*" inputmode="numeric">
+            <button class="admin-add-btn" onclick="addVehicleFromAdmin()">追加</button>
           </div>
-          <div class="form-group">
-            <label>種別を選択 *</label>
-            <select id="admin-type" onchange="onAdminTypeChange()">
-              <option value="">選択してください</option>
-              <option value="driver">ドライバー</option>
-              <option value="vehicle">車両No</option>
-            </select>
-          </div>
-          <div class="form-group hidden" id="admin-driver-group">
-            <label>ドライバー名 *</label>
-            <input type="text" id="admin-driver-name" placeholder="例：山田太郎">
-          </div>
-          <div class="form-group hidden" id="admin-vehicle-group">
-            <label>車両No（半角数字4桁以内） *</label>
-            <input type="text" id="admin-vehicle-no" placeholder="例：1234" maxlength="4" pattern="[0-9]*" inputmode="numeric">
-          </div>
-          <button class="submit-btn" onclick="registerFromAdmin()">登録</button>
         </div>
-      </div>
 
-      <!-- 号車設定タブ -->
-      <div id="admin-settings-tab" class="hidden">
+        <!-- 号車設定 -->
         <div class="card">
-          <div class="card-title">号車設定</div>
-          <p style="font-size:0.9em;color:#666;margin-bottom:15px;">各号車の送信タイミングと移動時間を設定します。この設定は終了フォームの表示と履歴計算に影響します。</p>
+          <div class="card-title">送信・移動時間設定</div>
           <div class="form-group">
-            <label>号車を選択 *</label>
-            <select id="settings-truck" onchange="onSettingsTruckChange()"><option value="">選択してください</option></select>
-          </div>
-          <div id="truck-settings-form" class="hidden">
-            <div class="form-group">
-              <label>送信タイミング *</label>
-              <p style="font-size:0.85em;color:#888;margin-bottom:8px;">終了情報をいつ送信するかを選択</p>
-              <div class="radio-group">
-                <label class="radio-option" id="timing-office-label">
-                  <input type="radio" name="submitTiming" value="営業所到着" checked onchange="onTimingChange()">
-                  <span>営業所到着</span>
-                </label>
-                <label class="radio-option" id="timing-loading-label">
-                  <input type="radio" name="submitTiming" value="積み込み終了" onchange="onTimingChange()">
-                  <span>積み込み終了</span>
-                </label>
-              </div>
+            <label>送信タイミング</label>
+            <p style="font-size:0.85em;color:#888;margin-bottom:8px;">終了情報をいつ送信するかを選択</p>
+            <div class="radio-group">
+              <label class="radio-option" id="timing-office-label">
+                <input type="radio" name="submitTiming" value="営業所到着" checked onchange="onTimingChange()">
+                <span>営業所到着</span>
+              </label>
+              <label class="radio-option" id="timing-loading-label">
+                <input type="radio" name="submitTiming" value="積み込み終了" onchange="onTimingChange()">
+                <span>積み込み終了</span>
+              </label>
             </div>
-            <div class="form-group">
-              <label>配送センター→営業所の移動時間（分） *</label>
-              <p style="font-size:0.85em;color:#888;margin-bottom:8px;">履歴の業務終了時間・帰庫時間の計算に使用</p>
-              <input type="number" id="settings-travel-time" min="0" max="180" value="30" placeholder="例：30">
-            </div>
-            <button class="submit-btn" onclick="saveTruckSettings()">設定を保存</button>
           </div>
+          <div class="form-group">
+            <label>配送センター→営業所の移動時間（分）</label>
+            <input type="number" id="settings-travel-time" min="0" max="180" value="30" placeholder="例：30">
+          </div>
+          <button class="submit-btn" onclick="saveTruckSettings()">設定を保存</button>
+        </div>
+
+        <!-- 一括リセット -->
+        <div class="card">
+          <button class="reset-all-btn" onclick="resetTruckAllData()">この号車のデータを一括リセット</button>
+          <p style="font-size:0.8em;color:#999;margin-top:8px;text-align:center;">ドライバー・車両No・設定をすべて初期化します</p>
         </div>
       </div>
     </div>
@@ -906,7 +926,6 @@
       <div class="duplicate-modal-buttons">
         <button class="duplicate-modal-btn overwrite" onclick="handleDuplicateOverwrite()">上書き保存する</button>
         <button class="duplicate-modal-btn clear" onclick="handleDuplicateClear()">上書きせずクリア</button>
-        <button class="duplicate-modal-btn cancel" onclick="handleDuplicateCancel()">キャンセル</button>
       </div>
     </div>
   </div>
@@ -966,7 +985,6 @@
       } else if (screen === 'admin') {
         document.getElementById('admin-screen').classList.add('active');
         document.querySelectorAll('.sidebar-menu-item')[2].classList.add('active');
-        loadMasterEntries();
       }
     }
 
@@ -1005,90 +1023,68 @@
     }
 
     // 管理画面
-    function switchAdminTab(tab) {
-      document.querySelectorAll('.tab-btn-admin').forEach(b => b.classList.remove('active'));
-      document.getElementById('admin-list-tab').classList.add('hidden');
-      document.getElementById('admin-register-tab').classList.add('hidden');
-      document.getElementById('admin-settings-tab').classList.add('hidden');
-
-      if (tab === 'list') {
-        document.querySelectorAll('.tab-btn-admin')[0].classList.add('active');
-        document.getElementById('admin-list-tab').classList.remove('hidden');
-      } else if (tab === 'register') {
-        document.querySelectorAll('.tab-btn-admin')[1].classList.add('active');
-        document.getElementById('admin-register-tab').classList.remove('hidden');
-      } else if (tab === 'settings') {
-        document.querySelectorAll('.tab-btn-admin')[2].classList.add('active');
-        document.getElementById('admin-settings-tab').classList.remove('hidden');
-        loadSettingsTruckSelect();
+    function onAdminTruckSelect() {
+      const truckNumber = document.getElementById('admin-truck-select').value;
+      if (!truckNumber) {
+        document.getElementById('admin-truck-detail').classList.add('hidden');
+        return;
       }
+      document.getElementById('admin-truck-detail').classList.remove('hidden');
+      loadAdminTruckData(truckNumber);
     }
 
-    function loadMasterEntries() {
-      const listEl = document.getElementById('master-entries-list');
-      listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
-
-      console.log('loadMasterEntries: 開始');
-
+    function loadAdminTruckData(truckNumber) {
+      // ドライバー一覧を読み込み
       google.script.run
-        .withSuccessHandler(function(result) {
-          console.log('loadMasterEntries: 結果受信', result);
-          if (result && result.success) {
-            allMasterEntries = result.entries || [];
-            console.log('loadMasterEntries: 件数=' + allMasterEntries.length);
-            renderMasterEntries(allMasterEntries);
-          } else {
-            const errorMsg = result && result.message ? result.message : '不明なエラー';
-            console.log('loadMasterEntries: エラー', errorMsg);
-            listEl.innerHTML = '<div class="empty-state"><p>読み込みエラー: ' + errorMsg + '</p></div>';
-          }
+        .withSuccessHandler(function(drivers) {
+          renderAdminList('admin-driver-list', drivers, 'driver', truckNumber);
         })
-        .withFailureHandler(function(error) {
-          console.log('loadMasterEntries: 通信エラー', error);
-          listEl.innerHTML = '<div class="empty-state"><p>通信エラーが発生しました</p></div>';
+        .getDriversByTruck(truckNumber);
+
+      // 車両一覧を読み込み
+      google.script.run
+        .withSuccessHandler(function(vehicles) {
+          renderAdminList('admin-vehicle-list', vehicles, 'vehicle', truckNumber);
         })
-        .getAllMasterEntries();
+        .getVehiclesByTruck(truckNumber);
+
+      // 号車設定を読み込み
+      google.script.run
+        .withSuccessHandler(function(settings) {
+          const timingRadios = document.querySelectorAll('input[name="submitTiming"]');
+          timingRadios.forEach(radio => {
+            radio.checked = (radio.value === settings.submitTiming);
+            const label = radio.closest('.radio-option');
+            if (label) label.classList.toggle('selected', radio.checked);
+          });
+          document.getElementById('settings-travel-time').value = settings.travelTime;
+        })
+        .getTruckSettings(truckNumber);
     }
 
-    function filterMasterEntries() {
-      const truckFilter = document.getElementById('admin-filter-truck').value;
-      let filtered = allMasterEntries;
-      if (truckFilter) {
-        filtered = allMasterEntries.filter(e => String(e.truckNumber).trim() === String(truckFilter).trim());
-      }
-      renderMasterEntries(filtered);
-    }
-
-    function renderMasterEntries(entries) {
-      const listEl = document.getElementById('master-entries-list');
-      if (!entries || entries.length === 0) {
-        listEl.innerHTML = '<div class="empty-state"><p>登録データがありません</p></div>';
+    function renderAdminList(containerId, items, type, truckNumber) {
+      const el = document.getElementById(containerId);
+      if (!items || items.length === 0) {
+        el.innerHTML = '<div class="admin-empty">登録なし</div>';
         return;
       }
       let html = '';
-      entries.forEach(entry => {
-        const type = entry.driverName ? 'ドライバー' : '車両No';
-        const name = entry.driverName || entry.vehicleNo;
-        html += `
-          <div class="master-entry">
-            <div class="master-entry-info">
-              <div class="master-entry-truck">${entry.truckNumber}</div>
-              <div class="master-entry-name">${type}: ${name}</div>
-            </div>
-            <button class="delete-btn" onclick="deleteMasterEntry(${entry.rowIndex})">削除</button>
-          </div>
-        `;
+      items.forEach(item => {
+        html += '<div class="admin-item">';
+        html += '<span class="admin-item-name">' + item.name + '</span>';
+        html += '<button class="delete-btn" onclick="deleteAdminItem(\'' + type + '\', \'' + truckNumber + '\', \'' + item.name.replace(/'/g, "\\'") + '\')">削除</button>';
+        html += '</div>';
       });
-      listEl.innerHTML = html;
+      el.innerHTML = html;
     }
 
-    function deleteMasterEntry(rowIndex) {
-      if (!confirm('削除してもよろしいですか？')) return;
+    function deleteAdminItem(type, truckNumber, name) {
+      if (!confirm(name + ' を削除してもよろしいですか？')) return;
       google.script.run
         .withSuccessHandler(function(result) {
           if (result.success) {
             showMessage(result.message, 'success');
-            loadMasterEntries();
+            loadAdminTruckData(truckNumber);
             loadMasterData();
           } else {
             showMessage(result.message, 'error');
@@ -1097,131 +1093,80 @@
         .withFailureHandler(function() {
           showMessage('削除に失敗しました', 'error');
         })
-        .deleteMasterEntry(rowIndex);
+        .deleteByName(truckNumber, type, name);
     }
 
-    function onAdminTypeChange() {
-      const type = document.getElementById('admin-type').value;
-      document.getElementById('admin-driver-group').classList.toggle('hidden', type !== 'driver');
-      document.getElementById('admin-vehicle-group').classList.toggle('hidden', type !== 'vehicle');
-    }
-
-    function registerFromAdmin() {
-      const truckNumber = document.getElementById('admin-truck').value;
-      const type = document.getElementById('admin-type').value;
-      if (!truckNumber || !type) {
-        showMessage('号車と種別を選択してください', 'error');
+    function addDriverFromAdmin() {
+      const truckNumber = document.getElementById('admin-truck-select').value;
+      const name = document.getElementById('admin-new-driver').value.trim();
+      if (!name) {
+        showMessage('ドライバー名を入力してください', 'error');
         return;
       }
-      if (type === 'driver') {
-        const name = document.getElementById('admin-driver-name').value.trim();
-        if (!name) {
-          showMessage('ドライバー名を入力してください', 'error');
-          return;
-        }
-        google.script.run
-          .withSuccessHandler(function(result) {
-            if (result.success) {
-              showMessage(result.message, 'success');
-              document.getElementById('admin-driver-name').value = '';
-              loadMasterEntries();
-              loadMasterData();
-            } else {
-              showMessage(result.message, 'error');
-            }
-          })
-          .withFailureHandler(function() {
-            showMessage('登録に失敗しました', 'error');
-          })
-          .registerDriverAdmin(truckNumber, name);
-      } else if (type === 'vehicle') {
-        const vehicleNo = document.getElementById('admin-vehicle-no').value.trim();
-        if (!vehicleNo || !/^\d{1,4}$/.test(vehicleNo)) {
-          showMessage('車両Noは半角数字4桁以内で入力してください', 'error');
-          return;
-        }
-        google.script.run
-          .withSuccessHandler(function(result) {
-            if (result.success) {
-              showMessage(result.message, 'success');
-              document.getElementById('admin-vehicle-no').value = '';
-              loadMasterEntries();
-              loadMasterData();
-            } else {
-              showMessage(result.message, 'error');
-            }
-          })
-          .withFailureHandler(function() {
-            showMessage('登録に失敗しました', 'error');
-          })
-          .registerVehicleAdmin(truckNumber, vehicleNo);
-      }
-    }
-
-    // 号車設定関連
-    function loadSettingsTruckSelect() {
-      populateSelect('settings-truck', masterData.trucks);
-      document.getElementById('truck-settings-form').classList.add('hidden');
-    }
-
-    function onSettingsTruckChange() {
-      const truckNumber = document.getElementById('settings-truck').value;
-      if (!truckNumber) {
-        document.getElementById('truck-settings-form').classList.add('hidden');
-        return;
-      }
-
       google.script.run
-        .withSuccessHandler(function(settings) {
-          document.getElementById('truck-settings-form').classList.remove('hidden');
-
-          // 送信タイミングを設定
-          const timingRadios = document.querySelectorAll('input[name="submitTiming"]');
-          timingRadios.forEach(radio => {
-            radio.checked = (radio.value === settings.submitTiming);
-            const label = radio.closest('.radio-option');
-            if (label) {
-              label.classList.toggle('selected', radio.checked);
-            }
-          });
-
-          // 移動時間を設定
-          document.getElementById('settings-travel-time').value = settings.travelTime;
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage(result.message, 'success');
+            document.getElementById('admin-new-driver').value = '';
+            loadAdminTruckData(truckNumber);
+            loadMasterData();
+          } else {
+            showMessage(result.message, 'error');
+          }
         })
         .withFailureHandler(function() {
-          showMessage('設定の読み込みに失敗しました', 'error');
+          showMessage('登録に失敗しました', 'error');
         })
-        .getTruckSettings(truckNumber);
+        .registerDriver(truckNumber, name);
+    }
+
+    function addVehicleFromAdmin() {
+      const truckNumber = document.getElementById('admin-truck-select').value;
+      const vehicleNo = document.getElementById('admin-new-vehicle').value.trim();
+      if (!vehicleNo || !/^\d{1,4}$/.test(vehicleNo)) {
+        showMessage('車両Noは半角数字4桁以内で入力してください', 'error');
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage(result.message, 'success');
+            document.getElementById('admin-new-vehicle').value = '';
+            loadAdminTruckData(truckNumber);
+            loadMasterData();
+          } else {
+            showMessage(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function() {
+          showMessage('登録に失敗しました', 'error');
+        })
+        .registerVehicle(truckNumber, vehicleNo);
     }
 
     function onTimingChange() {
       document.querySelectorAll('input[name="submitTiming"]').forEach(radio => {
         const label = radio.closest('.radio-option');
-        if (label) {
-          label.classList.toggle('selected', radio.checked);
-        }
+        if (label) label.classList.toggle('selected', radio.checked);
       });
     }
 
     function saveTruckSettings() {
-      const truckNumber = document.getElementById('settings-truck').value;
+      const truckNumber = document.getElementById('admin-truck-select').value;
       if (!truckNumber) {
         showMessage('号車を選択してください', 'error');
         return;
       }
-
       const submitTiming = document.querySelector('input[name="submitTiming"]:checked')?.value;
       if (!submitTiming) {
         showMessage('送信タイミングを選択してください', 'error');
         return;
       }
-
       const travelTime = parseInt(document.getElementById('settings-travel-time').value);
       if (isNaN(travelTime) || travelTime < 0) {
         showMessage('移動時間は0以上の数値を入力してください', 'error');
         return;
       }
-
       google.script.run
         .withSuccessHandler(function(result) {
           if (result.success) {
@@ -1234,6 +1179,26 @@
           showMessage('設定の保存に失敗しました', 'error');
         })
         .updateTruckSettings(truckNumber, submitTiming, travelTime);
+    }
+
+    function resetTruckAllData() {
+      const truckNumber = document.getElementById('admin-truck-select').value;
+      if (!truckNumber) return;
+      if (!confirm(truckNumber + ' のドライバー・車両No・設定をすべて初期化します。\nよろしいですか？')) return;
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage(result.message, 'success');
+            loadAdminTruckData(truckNumber);
+            loadMasterData();
+          } else {
+            showMessage(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function() {
+          showMessage('リセットに失敗しました', 'error');
+        })
+        .resetTruckData(truckNumber);
     }
 
     // 既存の機能
@@ -1268,9 +1233,7 @@
       populateSelect('start-truck', masterData.trucks);
       populateSelect('end-truck', masterData.trucks);
       populateSelect('history-filter-truck', masterData.trucks, true);
-      populateSelect('admin-filter-truck', masterData.trucks, true);
-      populateSelect('admin-truck', masterData.trucks);
-      populateSelect('settings-truck', masterData.trucks);
+      populateSelect('admin-truck-select', masterData.trucks);
       populateSelect('start-yosha1', masterData.yoshaCategory1);
       populateSelect('start-yosha2', masterData.yoshaCategory2);
       populateSelect('start-helper', masterData.helpers, false, 'なし');
@@ -1405,11 +1368,6 @@
         populateSelect('end-driver', []);
       }
       showMessage('入力をクリアしました', 'success');
-    }
-
-    function handleDuplicateCancel() {
-      overwriteMode = false;
-      closeDuplicateModal();
     }
 
     function closeDuplicateModal() {
@@ -1594,7 +1552,7 @@
       if (type === 'driver') {
         title.textContent = 'ドライバー新規登録';
         label.textContent = 'ドライバー名を入力してください';
-        input.placeholder = '例：山田太郎';
+        input.placeholder = '例：山田';
         input.type = 'text';
       } else if (type === 'vehicle') {
         title.textContent = '車両No新規登録';
@@ -1721,9 +1679,7 @@
           overwriteMode = false;
           if (result.success) {
             showMessage(result.message, 'success');
-            document.getElementById('start-meter').value = '';
-            document.getElementById('start-notes').value = '';
-            setCurrentDateTime();
+            resetStartForm();
           } else {
             showMessage(result.message, 'error');
           }
@@ -1798,15 +1754,7 @@
           overwriteMode = false;
           if (result.success) {
             showMessage(result.message, 'success');
-            document.getElementById('end-meter').value = '';
-            document.getElementById('end-notes').value = '';
-            document.querySelectorAll('input[name="cashOnDelivery"]').forEach(r => r.checked = false);
-            document.querySelectorAll('input[name="useTollRoad"]').forEach(r => r.checked = false);
-            document.getElementById('toll-road-card').classList.add('hidden');
-            document.getElementById('toll-sections-container').innerHTML = '';
-            tollSectionCount = 0;
-            document.querySelectorAll('.radio-option').forEach(o => o.classList.remove('selected'));
-            setCurrentDateTime();
+            resetEndForm();
           } else {
             showMessage(result.message, 'error');
           }
@@ -1818,6 +1766,37 @@
           showMessage('送信に失敗しました', 'error');
         })
         .saveEndRecord(data);
+    }
+
+    function resetStartForm() {
+      document.getElementById('start-truck').value = '';
+      document.getElementById('start-driver-btn').disabled = true;
+      document.getElementById('start-vehicle-btn').disabled = true;
+      populateSelect('start-driver', []);
+      populateSelect('start-vehicle', []);
+      document.getElementById('start-yosha1').value = '';
+      document.getElementById('start-yosha2').value = '';
+      document.getElementById('start-helper').value = '';
+      document.getElementById('start-meter').value = '';
+      document.getElementById('start-notes').value = '';
+      setCurrentDateTime();
+    }
+
+    function resetEndForm() {
+      document.getElementById('end-truck').value = '';
+      document.getElementById('end-driver-btn').disabled = true;
+      populateSelect('end-driver', []);
+      document.getElementById('end-destination').value = '';
+      document.getElementById('end-meter').value = '';
+      document.getElementById('end-notes').value = '';
+      document.querySelectorAll('input[name="cashOnDelivery"]').forEach(r => r.checked = false);
+      document.querySelectorAll('input[name="useTollRoad"]').forEach(r => r.checked = false);
+      document.getElementById('toll-road-card').classList.add('hidden');
+      document.getElementById('toll-sections-container').innerHTML = '';
+      tollSectionCount = 0;
+      document.querySelectorAll('.radio-option').forEach(o => o.classList.remove('selected'));
+      resetEndFormLabels();
+      setCurrentDateTime();
     }
 
     function loadHistory() {
@@ -2017,17 +1996,18 @@
       return merged;
     }
 
+    let lastMergedRecords = [];  // コピー用にマージ結果を保持
+
     function renderHistory(records) {
       const listContainer = document.getElementById('history-list');
-      const copyBtn = document.getElementById('copy-btn');
       if (!records || records.length === 0) {
         listContainer.innerHTML = '<div class="empty-state"><p>履歴がありません</p></div>';
-        copyBtn.disabled = true;
+        lastMergedRecords = [];
         return;
       }
-      copyBtn.disabled = false;
 
       const mergedRecords = mergeRecords(records);
+      lastMergedRecords = mergedRecords;
       let html = '';
 
       mergedRecords.forEach((data, index) => {
@@ -2086,6 +2066,7 @@
         }
 
         html += '</table>';
+        html += '<button class="copy-btn" onclick="copySingleTruck(' + index + ')">' + data.truckNumber + ' をコピー</button>';
         html += '</div>';
       });
 
@@ -2093,57 +2074,53 @@
     }
 
     // テーブルをタブ区切りでコピー
-    function copyHistoryTable() {
-      if (!historyRecords || historyRecords.length === 0) {
+    function buildCopyText(data) {
+      const times = calculateTimes(data);
+      const businessEndTime = times.businessEndTime;
+      const returnTime = times.returnTime;
+
+      let tollSections = [];
+      if (data.useTollRoad === 'はい' && data.tollRoadInfo) {
+        try {
+          tollSections = JSON.parse(data.tollRoadInfo);
+        } catch (e) {}
+      }
+
+      let text = '';
+      text += '車両No\t\t' + data.vehicleNo + '\n';
+      text += '号車\t\t' + data.truckNumber + '\n';
+      text += '庸車区分①\t\t' + data.yoshaCategory1 + '\n';
+      text += '庸車区分②\t\t' + data.yoshaCategory2 + '\n';
+      text += '運転者\t\t' + data.driverName + '\n';
+      text += '助手\t\t' + data.helper + '\n';
+      text += '\n';
+      text += '出庫メーター\t\t' + data.departureMeter + '\n';
+      text += '帰庫メーター\t\t' + data.returnMeter + '\n';
+      text += '\n';
+      text += '出発時間\t\t' + data.departureTime + '\n';
+      text += '帰着時間\t\t' + data.centerArrivalTime + '\n';
+      text += '業務終了時間\t\t' + businessEndTime + '\n';
+      text += '帰庫時間\t\t' + returnTime + '\n';
+      text += '\n';
+      text += '有料道路\t\t高速料金\n';
+
+      if (tollSections.length > 0) {
+        tollSections.forEach(sec => {
+          text += (sec.start || '') + '\t' + (sec.end || '') + '\t' + (sec.fee || '') + '\n';
+        });
+      }
+      return text;
+    }
+
+    function copySingleTruck(index) {
+      if (!lastMergedRecords || !lastMergedRecords[index]) {
         showMessage('コピーする履歴がありません', 'error');
         return;
       }
-
-      const mergedRecords = mergeRecords(historyRecords);
-      let copyText = '';
-
-      mergedRecords.forEach((data, index) => {
-        if (index > 0) copyText += '\n\n';
-
-        const times = calculateTimes(data);
-        const businessEndTime = times.businessEndTime;
-        const returnTime = times.returnTime;
-
-        let tollSections = [];
-        if (data.useTollRoad === 'はい' && data.tollRoadInfo) {
-          try {
-            tollSections = JSON.parse(data.tollRoadInfo);
-          } catch (e) {}
-        }
-
-        // テーブル形式でテキスト生成（タブ区切り）
-        copyText += '車両No\t\t' + data.vehicleNo + '\n';
-        copyText += '号車\t\t' + data.truckNumber + '\n';
-        copyText += '庸車区分①\t\t' + data.yoshaCategory1 + '\n';
-        copyText += '庸車区分②\t\t' + data.yoshaCategory2 + '\n';
-        copyText += '運転者\t\t' + data.driverName + '\n';
-        copyText += '助手\t\t' + data.helper + '\n';
-        copyText += '\n';
-        copyText += '出庫メーター\t\t' + data.departureMeter + '\n';
-        copyText += '帰庫メーター\t\t' + data.returnMeter + '\n';
-        copyText += '\n';
-        copyText += '出発時間\t\t' + data.departureTime + '\n';
-        copyText += '帰着時間\t\t' + data.centerArrivalTime + '\n';
-        copyText += '業務終了時間\t\t' + businessEndTime + '\n';
-        copyText += '帰庫時間\t\t' + returnTime + '\n';
-        copyText += '\n';
-        copyText += '有料道路\t\t高速料金\n';
-
-        if (tollSections.length > 0) {
-          tollSections.forEach(sec => {
-            copyText += (sec.start || '') + '\t' + (sec.end || '') + '\t' + (sec.fee || '') + '\n';
-          });
-        }
-      });
-
+      const copyText = buildCopyText(lastMergedRecords[index]);
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(copyText)
-          .then(() => showMessage('テーブルをコピーしました', 'success'))
+          .then(() => showMessage(lastMergedRecords[index].truckNumber + ' をコピーしました', 'success'))
           .catch(() => fallbackCopy(copyText));
       } else {
         fallbackCopy(copyText);
