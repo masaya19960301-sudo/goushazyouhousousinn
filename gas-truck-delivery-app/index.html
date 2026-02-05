@@ -710,8 +710,8 @@
                 <select id="end-center-minute" required><option value="">分</option></select>
               </div>
             </div>
-            <div class="form-group">
-              <label>6. 営業所へ帰庫した時間を選択してください *</label>
+            <div class="form-group" id="office-time-group">
+              <label id="office-time-label">6. 営業所へ帰庫した時間を選択してください *</label>
               <div class="time-select-group">
                 <select id="end-office-hour" required><option value="">時</option></select>
                 <span class="time-separator">:</span>
@@ -788,6 +788,7 @@
         <div class="tab-buttons">
           <button class="tab-btn-admin active" onclick="switchAdminTab('list')">一覧</button>
           <button class="tab-btn-admin" onclick="switchAdminTab('register')">新規登録</button>
+          <button class="tab-btn-admin" onclick="switchAdminTab('settings')">号車設定</button>
         </div>
       </div>
 
@@ -830,6 +831,40 @@
             <input type="text" id="admin-vehicle-no" placeholder="例：1234" maxlength="4" pattern="[0-9]*" inputmode="numeric">
           </div>
           <button class="submit-btn" onclick="registerFromAdmin()">登録</button>
+        </div>
+      </div>
+
+      <!-- 号車設定タブ -->
+      <div id="admin-settings-tab" class="hidden">
+        <div class="card">
+          <div class="card-title">号車設定</div>
+          <p style="font-size:0.9em;color:#666;margin-bottom:15px;">各号車の送信タイミングと移動時間を設定します。この設定は終了フォームの表示と履歴計算に影響します。</p>
+          <div class="form-group">
+            <label>号車を選択 *</label>
+            <select id="settings-truck" onchange="onSettingsTruckChange()"><option value="">選択してください</option></select>
+          </div>
+          <div id="truck-settings-form" class="hidden">
+            <div class="form-group">
+              <label>送信タイミング *</label>
+              <p style="font-size:0.85em;color:#888;margin-bottom:8px;">終了情報をいつ送信するかを選択</p>
+              <div class="radio-group">
+                <label class="radio-option" id="timing-office-label">
+                  <input type="radio" name="submitTiming" value="営業所到着" checked onchange="onTimingChange()">
+                  <span>営業所到着</span>
+                </label>
+                <label class="radio-option" id="timing-loading-label">
+                  <input type="radio" name="submitTiming" value="積み込み終了" onchange="onTimingChange()">
+                  <span>積み込み終了</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>配送センター→営業所の移動時間（分） *</label>
+              <p style="font-size:0.85em;color:#888;margin-bottom:8px;">履歴の業務終了時間・帰庫時間の計算に使用</p>
+              <input type="number" id="settings-travel-time" min="0" max="180" value="30" placeholder="例：30">
+            </div>
+            <button class="submit-btn" onclick="saveTruckSettings()">設定を保存</button>
+          </div>
         </div>
       </div>
     </div>
@@ -888,6 +923,7 @@
     let isAdminAuthenticated = false;
     let duplicateCheckForm = '';  // 'start' or 'end'
     let overwriteMode = false;
+    let currentEndTruckSettings = { submitTiming: '営業所到着', travelTime: 30 };  // 終了フォームの現在の号車設定
 
     document.addEventListener('DOMContentLoaded', initializePage);
 
@@ -971,14 +1007,20 @@
     // 管理画面
     function switchAdminTab(tab) {
       document.querySelectorAll('.tab-btn-admin').forEach(b => b.classList.remove('active'));
+      document.getElementById('admin-list-tab').classList.add('hidden');
+      document.getElementById('admin-register-tab').classList.add('hidden');
+      document.getElementById('admin-settings-tab').classList.add('hidden');
+
       if (tab === 'list') {
         document.querySelectorAll('.tab-btn-admin')[0].classList.add('active');
         document.getElementById('admin-list-tab').classList.remove('hidden');
-        document.getElementById('admin-register-tab').classList.add('hidden');
-      } else {
+      } else if (tab === 'register') {
         document.querySelectorAll('.tab-btn-admin')[1].classList.add('active');
-        document.getElementById('admin-list-tab').classList.add('hidden');
         document.getElementById('admin-register-tab').classList.remove('hidden');
+      } else if (tab === 'settings') {
+        document.querySelectorAll('.tab-btn-admin')[2].classList.add('active');
+        document.getElementById('admin-settings-tab').classList.remove('hidden');
+        loadSettingsTruckSelect();
       }
     }
 
@@ -1116,6 +1158,84 @@
       }
     }
 
+    // 号車設定関連
+    function loadSettingsTruckSelect() {
+      populateSelect('settings-truck', masterData.trucks);
+      document.getElementById('truck-settings-form').classList.add('hidden');
+    }
+
+    function onSettingsTruckChange() {
+      const truckNumber = document.getElementById('settings-truck').value;
+      if (!truckNumber) {
+        document.getElementById('truck-settings-form').classList.add('hidden');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(settings) {
+          document.getElementById('truck-settings-form').classList.remove('hidden');
+
+          // 送信タイミングを設定
+          const timingRadios = document.querySelectorAll('input[name="submitTiming"]');
+          timingRadios.forEach(radio => {
+            radio.checked = (radio.value === settings.submitTiming);
+            const label = radio.closest('.radio-option');
+            if (label) {
+              label.classList.toggle('selected', radio.checked);
+            }
+          });
+
+          // 移動時間を設定
+          document.getElementById('settings-travel-time').value = settings.travelTime;
+        })
+        .withFailureHandler(function() {
+          showMessage('設定の読み込みに失敗しました', 'error');
+        })
+        .getTruckSettings(truckNumber);
+    }
+
+    function onTimingChange() {
+      document.querySelectorAll('input[name="submitTiming"]').forEach(radio => {
+        const label = radio.closest('.radio-option');
+        if (label) {
+          label.classList.toggle('selected', radio.checked);
+        }
+      });
+    }
+
+    function saveTruckSettings() {
+      const truckNumber = document.getElementById('settings-truck').value;
+      if (!truckNumber) {
+        showMessage('号車を選択してください', 'error');
+        return;
+      }
+
+      const submitTiming = document.querySelector('input[name="submitTiming"]:checked')?.value;
+      if (!submitTiming) {
+        showMessage('送信タイミングを選択してください', 'error');
+        return;
+      }
+
+      const travelTime = parseInt(document.getElementById('settings-travel-time').value);
+      if (isNaN(travelTime) || travelTime < 0) {
+        showMessage('移動時間は0以上の数値を入力してください', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage(result.message, 'success');
+          } else {
+            showMessage(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function() {
+          showMessage('設定の保存に失敗しました', 'error');
+        })
+        .updateTruckSettings(truckNumber, submitTiming, travelTime);
+    }
+
     // 既存の機能
     function setupRadioListeners() {
       document.querySelectorAll('input[name="cashOnDelivery"]').forEach(radio => {
@@ -1150,6 +1270,7 @@
       populateSelect('history-filter-truck', masterData.trucks, true);
       populateSelect('admin-filter-truck', masterData.trucks, true);
       populateSelect('admin-truck', masterData.trucks);
+      populateSelect('settings-truck', masterData.trucks);
       populateSelect('start-yosha1', masterData.yoshaCategory1);
       populateSelect('start-yosha2', masterData.yoshaCategory2);
       populateSelect('start-helper', masterData.helpers, false, 'なし');
@@ -1197,9 +1318,39 @@
       if (truckNumber) {
         loadTruckData(truckNumber, 'end');
         checkDuplicate('end');
+        // 号車設定を読み込んでフォームを更新
+        loadEndFormSettings(truckNumber);
       } else {
         populateSelect('end-driver', []);
+        resetEndFormLabels();
       }
+    }
+
+    function loadEndFormSettings(truckNumber) {
+      google.script.run
+        .withSuccessHandler(function(settings) {
+          currentEndTruckSettings = settings;
+          updateEndFormLabels(settings.submitTiming);
+        })
+        .withFailureHandler(function() {
+          currentEndTruckSettings = { submitTiming: '営業所到着', travelTime: 30 };
+          updateEndFormLabels('営業所到着');
+        })
+        .getTruckSettings(truckNumber);
+    }
+
+    function updateEndFormLabels(submitTiming) {
+      const label = document.getElementById('office-time-label');
+      if (submitTiming === '積み込み終了') {
+        label.textContent = '6. 業務終了時間を選択してください *';
+      } else {
+        label.textContent = '6. 営業所へ帰庫した時間を選択してください *';
+      }
+    }
+
+    function resetEndFormLabels() {
+      currentEndTruckSettings = { submitTiming: '営業所到着', travelTime: 30 };
+      document.getElementById('office-time-label').textContent = '6. 営業所へ帰庫した時間を選択してください *';
     }
 
     function onEndDateChange() {
@@ -1617,7 +1768,9 @@
         hasCashOnDelivery: document.querySelector('input[name="cashOnDelivery"]:checked')?.value || '',
         useTollRoad: useToll?.value || '',
         tollRoadSections: useToll?.value === 'はい' ? getTollSections() : [],
-        notes: document.getElementById('end-notes').value
+        notes: document.getElementById('end-notes').value,
+        submitTiming: currentEndTruckSettings.submitTiming,
+        travelTime: currentEndTruckSettings.travelTime
       };
 
       // 上書きモードの場合、既存データを削除してから保存
@@ -1762,6 +1915,41 @@
       return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
     }
 
+    function addMinutes(timeStr, minutes) {
+      if (!timeStr) return '';
+      const parts = timeStr.split(':');
+      if (parts.length !== 2) return timeStr;
+      let hours = parseInt(parts[0], 10);
+      let mins = parseInt(parts[1], 10);
+      mins += minutes;
+      while (mins >= 60) {
+        mins -= 60;
+        hours += 1;
+      }
+      if (hours >= 24) hours -= 24;
+      return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+    }
+
+    // 送信タイミングに応じて業務終了時間と帰庫時間を計算
+    function calculateTimes(data) {
+      const submitTiming = data.submitTiming || '営業所到着';
+      const travelTime = data.travelTime || 30;
+
+      let businessEndTime, returnTime;
+
+      if (submitTiming === '積み込み終了') {
+        // 積み込み終了タイミング: 入力値が業務終了時間、帰庫時間は+移動時間
+        businessEndTime = data.officeArrivalTime;
+        returnTime = addMinutes(data.officeArrivalTime, travelTime);
+      } else {
+        // 営業所到着タイミング（デフォルト）: 帰庫時間はそのまま、業務終了時間は-移動時間
+        businessEndTime = subtractMinutes(data.officeArrivalTime, travelTime);
+        returnTime = data.officeArrivalTime;
+      }
+
+      return { businessEndTime, returnTime };
+    }
+
     // 開始と終了レコードをマージ
     function mergeRecords(records) {
       const merged = [];
@@ -1790,6 +1978,8 @@
           officeArrivalTime: matchingEnd ? formatTime(matchingEnd.officeArrivalTime) || '' : '',
           useTollRoad: matchingEnd ? matchingEnd.useTollRoad || '' : '',
           tollRoadInfo: matchingEnd ? matchingEnd.tollRoadInfo || '' : '',
+          submitTiming: matchingEnd ? matchingEnd.submitTiming || '営業所到着' : '営業所到着',
+          travelTime: matchingEnd ? matchingEnd.travelTime || 30 : 30,
           hasEnd: !!matchingEnd
         });
       });
@@ -1817,6 +2007,8 @@
             officeArrivalTime: formatTime(end.officeArrivalTime) || '',
             useTollRoad: end.useTollRoad || '',
             tollRoadInfo: end.tollRoadInfo || '',
+            submitTiming: end.submitTiming || '営業所到着',
+            travelTime: end.travelTime || 30,
             hasEnd: true
           });
         }
@@ -1839,7 +2031,9 @@
       let html = '';
 
       mergedRecords.forEach((data, index) => {
-        const businessEndTime = subtractMinutes(data.officeArrivalTime, 30);
+        const times = calculateTimes(data);
+        const businessEndTime = times.businessEndTime;
+        const returnTime = times.returnTime;
 
         // 有料道路区間をパース
         let tollSections = [];
@@ -1875,7 +2069,7 @@
         html += '<tr><td class="label-cell">出発時間</td><td class="value-cell" colspan="2">' + data.departureTime + '</td></tr>';
         html += '<tr><td class="label-cell">帰着時間</td><td class="value-cell" colspan="2">' + data.centerArrivalTime + '</td></tr>';
         html += '<tr><td class="label-cell">業務終了時間</td><td class="value-cell" colspan="2">' + businessEndTime + '</td></tr>';
-        html += '<tr><td class="label-cell">帰庫時間</td><td class="value-cell" colspan="2">' + data.officeArrivalTime + '</td></tr>';
+        html += '<tr><td class="label-cell">帰庫時間</td><td class="value-cell" colspan="2">' + returnTime + '</td></tr>';
 
         // 空行
         html += '<tr class="empty-row"><td colspan="3"></td></tr>';
@@ -1911,7 +2105,9 @@
       mergedRecords.forEach((data, index) => {
         if (index > 0) copyText += '\n\n';
 
-        const businessEndTime = subtractMinutes(data.officeArrivalTime, 30);
+        const times = calculateTimes(data);
+        const businessEndTime = times.businessEndTime;
+        const returnTime = times.returnTime;
 
         let tollSections = [];
         if (data.useTollRoad === 'はい' && data.tollRoadInfo) {
@@ -1934,7 +2130,7 @@
         copyText += '出発時間\t\t' + data.departureTime + '\n';
         copyText += '帰着時間\t\t' + data.centerArrivalTime + '\n';
         copyText += '業務終了時間\t\t' + businessEndTime + '\n';
-        copyText += '帰庫時間\t\t' + data.officeArrivalTime + '\n';
+        copyText += '帰庫時間\t\t' + returnTime + '\n';
         copyText += '\n';
         copyText += '有料道路\t\t高速料金\n';
 

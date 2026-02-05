@@ -9,7 +9,8 @@ const ADMIN_PASSWORD = 'admin1234';
 // シート名
 const SHEET_NAMES = {
   HISTORY: '配送履歴',
-  TRUCK_MASTER: '号車マスタ'
+  TRUCK_MASTER: '号車マスタ',
+  TRUCK_SETTINGS: '号車設定'
 };
 
 /**
@@ -88,7 +89,9 @@ function getOrCreateHistorySheet() {
       '有料道路区間情報',
       '記録種別',
       '備考',
-      '登録日時'
+      '登録日時',
+      '送信タイミング',
+      '移動時間（分）'
     ]]);
     sheet.getRange(1, 1, 1, 22).setFontWeight('bold');
     sheet.setFrozenRows(1);
@@ -268,6 +271,124 @@ function registerVehicle(truckNumber, vehicleNo) {
   } catch (e) {
     Logger.log('registerVehicle error: ' + e.message);
     return { success: false, message: 'エラー: ' + e.message };
+  }
+}
+
+/**
+ * 号車設定シートを取得または作成
+ */
+function getOrCreateTruckSettingsSheet() {
+  const ss = getSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAMES.TRUCK_SETTINGS);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAMES.TRUCK_SETTINGS);
+    sheet.getRange(1, 1, 1, 4).setValues([[
+      '号車',
+      '送信タイミング',
+      '移動時間（分）',
+      '更新日時'
+    ]]);
+    sheet.getRange(1, 1, 1, 4).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+
+    // 1〜30号車のデフォルト設定を追加
+    const defaultData = [];
+    for (let i = 1; i <= 30; i++) {
+      defaultData.push([i + '号車', '営業所到着', 30, '']);
+    }
+    sheet.getRange(2, 1, 30, 4).setValues(defaultData);
+  }
+
+  return sheet;
+}
+
+/**
+ * 号車設定を取得
+ */
+function getTruckSettings(truckNumber) {
+  try {
+    const sheet = getOrCreateTruckSettingsSheet();
+    const data = sheet.getDataRange().getValues();
+    const searchTruck = String(truckNumber).trim();
+
+    for (let i = 1; i < data.length; i++) {
+      const rowTruck = String(data[i][0]).trim();
+      if (rowTruck === searchTruck) {
+        return {
+          truckNumber: rowTruck,
+          submitTiming: data[i][1] || '営業所到着',
+          travelTime: parseInt(data[i][2]) || 30
+        };
+      }
+    }
+
+    // デフォルト値を返す
+    return {
+      truckNumber: searchTruck,
+      submitTiming: '営業所到着',
+      travelTime: 30
+    };
+  } catch (e) {
+    Logger.log('getTruckSettings error: ' + e.message);
+    return {
+      truckNumber: String(truckNumber),
+      submitTiming: '営業所到着',
+      travelTime: 30
+    };
+  }
+}
+
+/**
+ * 号車設定を更新
+ */
+function updateTruckSettings(truckNumber, submitTiming, travelTime) {
+  try {
+    const sheet = getOrCreateTruckSettingsSheet();
+    const data = sheet.getDataRange().getValues();
+    const searchTruck = String(truckNumber).trim();
+    const timestamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss');
+
+    for (let i = 1; i < data.length; i++) {
+      const rowTruck = String(data[i][0]).trim();
+      if (rowTruck === searchTruck) {
+        sheet.getRange(i + 1, 2, 1, 3).setValues([[submitTiming, parseInt(travelTime), timestamp]]);
+        SpreadsheetApp.flush();
+        return { success: true, message: '設定を保存しました' };
+      }
+    }
+
+    // 見つからなければ新規追加
+    sheet.appendRow([searchTruck, submitTiming, parseInt(travelTime), timestamp]);
+    SpreadsheetApp.flush();
+    return { success: true, message: '設定を保存しました' };
+  } catch (e) {
+    Logger.log('updateTruckSettings error: ' + e.message);
+    return { success: false, message: 'エラー: ' + e.message };
+  }
+}
+
+/**
+ * 全号車の設定を取得
+ */
+function getAllTruckSettings() {
+  try {
+    const sheet = getOrCreateTruckSettingsSheet();
+    const data = sheet.getDataRange().getValues();
+    const settings = [];
+
+    for (let i = 1; i < data.length; i++) {
+      settings.push({
+        truckNumber: String(data[i][0]).trim(),
+        submitTiming: data[i][1] || '営業所到着',
+        travelTime: parseInt(data[i][2]) || 30
+      });
+    }
+
+    return settings;
+  } catch (e) {
+    Logger.log('getAllTruckSettings error: ' + e.message);
+    return [];
   }
 }
 
@@ -484,6 +605,11 @@ function saveEndRecord(data) {
     // 日付は文字列として保存（自動変換を防ぐ）
     const dateStr = String(data.date || '').trim();
 
+    // 号車設定を取得（送信時の設定をレコードに紐づける）
+    const truckSettings = getTruckSettings(data.truckNumber);
+    const submitTiming = data.submitTiming || truckSettings.submitTiming;
+    const travelTime = data.travelTime !== undefined ? data.travelTime : truckSettings.travelTime;
+
     sheet.appendRow([
       recordId,
       dateStr,
@@ -504,7 +630,9 @@ function saveEndRecord(data) {
       tollRoadInfo,
       '業務終了',
       String(data.notes || ''),
-      timestamp
+      timestamp,
+      submitTiming,
+      travelTime
     ]);
 
     // シートを即座に保存
@@ -577,7 +705,9 @@ function getHistory(filter) {
         tollRoadInfo: row[16] ? String(row[16]) : '',
         recordType: row[17] ? String(row[17]) : '',
         notes: row[18] ? String(row[18]) : '',
-        timestamp: row[19] ? String(row[19]) : ''
+        timestamp: row[19] ? String(row[19]) : '',
+        submitTiming: row[20] ? String(row[20]) : '営業所到着',
+        travelTime: row[21] ? parseInt(row[21]) : 30
       };
 
       // フィルター適用
