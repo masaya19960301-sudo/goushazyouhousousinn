@@ -430,7 +430,6 @@ function getHelperList() {
  */
 function getDestinationList() {
   return [
-    { id: 'office', name: '営業所' },
     { id: 'center', name: '配送センター' },
     { id: 'direct', name: '直帰' }
   ];

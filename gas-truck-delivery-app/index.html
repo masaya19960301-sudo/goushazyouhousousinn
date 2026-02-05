@@ -710,10 +710,6 @@
                 <select id="start-minute" required><option value="">分</option></select>
               </div>
             </div>
-            <div class="form-group">
-              <label>備考</label>
-              <textarea id="start-notes" placeholder="特記事項があれば入力"></textarea>
-            </div>
           </div>
           <button type="submit" class="submit-btn" id="start-submit-btn">業務開始を送信</button>
         </form>
@@ -791,12 +787,6 @@
             <div id="toll-sections-container"></div>
             <button type="button" class="add-toll-btn" id="add-toll-btn" onclick="addTollSection()">+ 使用区間を追加</button>
             <p style="font-size: 0.8em; color: #666; margin-top: 10px;">※最大10区間まで入力できます</p>
-          </div>
-          <div class="card">
-            <div class="form-group">
-              <label>備考</label>
-              <textarea id="end-notes" placeholder="特記事項があれば入力"></textarea>
-            </div>
           </div>
           <button type="submit" class="submit-btn" id="end-submit-btn">業務終了を送信</button>
         </form>
@@ -1236,7 +1226,7 @@
       populateSelect('admin-truck-select', masterData.trucks);
       populateSelect('start-yosha1', masterData.yoshaCategory1);
       populateSelect('start-yosha2', masterData.yoshaCategory2);
-      populateSelect('start-helper', masterData.helpers, false, 'なし');
+      populateSelect('start-helper', masterData.helpers);
       populateSelect('end-destination', masterData.destinations);
     }
 
@@ -1305,7 +1295,7 @@
     function updateEndFormLabels(submitTiming) {
       const label = document.getElementById('office-time-label');
       if (submitTiming === '積み込み終了') {
-        label.textContent = '6. 業務終了時間を選択してください *';
+        label.textContent = '6. 業務終了の時間を選択してください *';
       } else {
         label.textContent = '6. 営業所へ帰庫した時間を選択してください *';
       }
@@ -1650,8 +1640,7 @@
         yoshaCategory2: document.getElementById('start-yosha2').value,
         helper: document.getElementById('start-helper').value,
         departureMeter: meter,
-        departureTime: document.getElementById('start-hour').value + ':' + document.getElementById('start-minute').value,
-        notes: document.getElementById('start-notes').value
+        departureTime: document.getElementById('start-hour').value + ':' + document.getElementById('start-minute').value
       };
 
       // 上書きモードの場合、既存データを削除してから保存
@@ -1724,7 +1713,6 @@
         hasCashOnDelivery: document.querySelector('input[name="cashOnDelivery"]:checked')?.value || '',
         useTollRoad: useToll?.value || '',
         tollRoadSections: useToll?.value === 'はい' ? getTollSections() : [],
-        notes: document.getElementById('end-notes').value,
         submitTiming: currentEndTruckSettings.submitTiming,
         travelTime: currentEndTruckSettings.travelTime
       };
@@ -1778,7 +1766,6 @@
       document.getElementById('start-yosha2').value = '';
       document.getElementById('start-helper').value = '';
       document.getElementById('start-meter').value = '';
-      document.getElementById('start-notes').value = '';
       setCurrentDateTime();
     }
 
@@ -1788,7 +1775,6 @@
       populateSelect('end-driver', []);
       document.getElementById('end-destination').value = '';
       document.getElementById('end-meter').value = '';
-      document.getElementById('end-notes').value = '';
       document.querySelectorAll('input[name="cashOnDelivery"]').forEach(r => r.checked = false);
       document.querySelectorAll('input[name="useTollRoad"]').forEach(r => r.checked = false);
       document.getElementById('toll-road-card').classList.add('hidden');
@@ -1909,19 +1895,23 @@
       return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
     }
 
-    // 送信タイミングに応じて業務終了時間と帰庫時間を計算
+    // 送信タイミングに応じて業務終了と帰庫時間を計算
     function calculateTimes(data) {
       const submitTiming = data.submitTiming || '営業所到着';
       const travelTime = data.travelTime || 30;
 
       let businessEndTime, returnTime;
 
-      if (submitTiming === '積み込み終了') {
-        // 積み込み終了タイミング: 入力値が業務終了時間、帰庫時間は+移動時間
+      // 直帰の場合: 業務終了 = 帰庫時間 = 入力値（移動時間の調整なし）
+      if (data.destination === '直帰') {
+        businessEndTime = data.officeArrivalTime;
+        returnTime = data.officeArrivalTime;
+      } else if (submitTiming === '積み込み終了') {
+        // 積み込み終了タイミング: 入力値が業務終了、帰庫時間は+移動時間
         businessEndTime = data.officeArrivalTime;
         returnTime = addMinutes(data.officeArrivalTime, travelTime);
       } else {
-        // 営業所到着タイミング（デフォルト）: 帰庫時間はそのまま、業務終了時間は-移動時間
+        // 営業所到着タイミング（デフォルト）: 帰庫時間はそのまま、業務終了は-移動時間
         businessEndTime = subtractMinutes(data.officeArrivalTime, travelTime);
         returnTime = data.officeArrivalTime;
       }
@@ -1959,6 +1949,8 @@
           tollRoadInfo: matchingEnd ? matchingEnd.tollRoadInfo || '' : '',
           submitTiming: matchingEnd ? matchingEnd.submitTiming || '営業所到着' : '営業所到着',
           travelTime: matchingEnd ? matchingEnd.travelTime || 30 : 30,
+          destination: matchingEnd ? matchingEnd.destination || '' : '',
+          hasCashOnDelivery: matchingEnd ? matchingEnd.hasCashOnDelivery || '' : '',
           hasEnd: !!matchingEnd
         });
       });
@@ -1988,6 +1980,8 @@
             tollRoadInfo: end.tollRoadInfo || '',
             submitTiming: end.submitTiming || '営業所到着',
             travelTime: end.travelTime || 30,
+            destination: end.destination || '',
+            hasCashOnDelivery: end.hasCashOnDelivery || '',
             hasEnd: true
           });
         }
@@ -2048,7 +2042,7 @@
         // 時間
         html += '<tr><td class="label-cell">出発時間</td><td class="value-cell" colspan="2">' + data.departureTime + '</td></tr>';
         html += '<tr><td class="label-cell">帰着時間</td><td class="value-cell" colspan="2">' + data.centerArrivalTime + '</td></tr>';
-        html += '<tr><td class="label-cell">業務終了時間</td><td class="value-cell" colspan="2">' + businessEndTime + '</td></tr>';
+        html += '<tr><td class="label-cell">業務終了</td><td class="value-cell" colspan="2">' + businessEndTime + '</td></tr>';
         html += '<tr><td class="label-cell">帰庫時間</td><td class="value-cell" colspan="2">' + returnTime + '</td></tr>';
 
         // 空行
@@ -2066,6 +2060,9 @@
         }
 
         html += '</table>';
+        if (data.hasCashOnDelivery === 'はい') {
+          html += '<p style="color:#dc3545;font-weight:600;padding:10px 15px;margin:0;font-size:0.9em;">※ 代引き・返金がありました</p>';
+        }
         html += '<button class="copy-btn" onclick="copySingleTruck(' + index + ')">' + data.truckNumber + ' をコピー</button>';
         html += '</div>';
       });
@@ -2099,7 +2096,7 @@
       text += '\n';
       text += '出発時間\t\t' + data.departureTime + '\n';
       text += '帰着時間\t\t' + data.centerArrivalTime + '\n';
-      text += '業務終了時間\t\t' + businessEndTime + '\n';
+      text += '業務終了\t\t' + businessEndTime + '\n';
       text += '帰庫時間\t\t' + returnTime + '\n';
       text += '\n';
       text += '有料道路\t\t高速料金\n';
