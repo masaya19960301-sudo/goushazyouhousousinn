@@ -729,13 +729,6 @@
               <select id="end-truck" required onchange="onEndTruckChange()"><option value="">選択してください</option></select>
             </div>
             <div class="form-group">
-              <label>ドライバー名を選択してください *</label>
-              <div class="input-with-button">
-                <select id="end-driver" required><option value="">選択してください</option></select>
-                <button type="button" class="register-btn" id="end-driver-btn" onclick="openModal('driver', 'end')" disabled>新規登録</button>
-              </div>
-            </div>
-            <div class="form-group">
               <label>3. 業務終了後の行き先を選択してください *</label>
               <select id="end-destination" required onchange="onDestinationChange()"><option value="">選択してください</option></select>
             </div>
@@ -920,6 +913,31 @@
     </div>
   </div>
 
+  <!-- 開始情報未送信警告モーダル -->
+  <div class="duplicate-modal" id="start-warning-modal">
+    <div class="duplicate-modal-content">
+      <div class="duplicate-modal-icon">⚠️</div>
+      <div class="duplicate-modal-title">開始情報がありません</div>
+      <div class="duplicate-modal-message">この号車の開始情報が送信されていません。<br>開始情報の入力をお願いします。</div>
+      <div class="duplicate-modal-buttons">
+        <button class="duplicate-modal-btn clear" onclick="closeStartWarningModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 未保存警告モーダル -->
+  <div class="duplicate-modal" id="unsaved-modal">
+    <div class="duplicate-modal-content">
+      <div class="duplicate-modal-icon">⚠️</div>
+      <div class="duplicate-modal-title">入力中のデータがあります</div>
+      <div class="duplicate-modal-message" id="unsaved-modal-message">保存されていない入力があります。<br>どうしますか？</div>
+      <div class="duplicate-modal-buttons">
+        <button class="duplicate-modal-btn overwrite" onclick="handleSaveAndNavigate()">保存して移動</button>
+        <button class="duplicate-modal-btn clear" onclick="handleDiscardAndNavigate()">保存せずに移動</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentRecordType = 'start';
     let historyRecords = [];
@@ -933,6 +951,8 @@
     let duplicateCheckForm = '';  // 'start' or 'end'
     let overwriteMode = false;
     let currentEndTruckSettings = { submitTiming: '営業所到着', travelTime: 30 };  // 終了フォームの現在の号車設定
+    let pendingNavigation = '';  // 遷移先を保持
+    let unsavedFormType = '';  // 'start' or 'end'
 
     document.addEventListener('DOMContentLoaded', initializePage);
 
@@ -960,8 +980,66 @@
       document.getElementById('hamburger').classList.remove('active');
     }
 
+    function hasUnsavedStartChanges() {
+      const truck = document.getElementById('start-truck').value;
+      const driver = document.getElementById('start-driver').value;
+      const vehicle = document.getElementById('start-vehicle').value;
+      const meter = document.getElementById('start-meter').value;
+      return truck || driver || vehicle || meter;
+    }
+
+    function hasUnsavedEndChanges() {
+      const truck = document.getElementById('end-truck').value;
+      const destination = document.getElementById('end-destination').value;
+      const meter = document.getElementById('end-meter').value;
+      const cod = document.querySelector('input[name="cashOnDelivery"]:checked');
+      const toll = document.querySelector('input[name="useTollRoad"]:checked');
+      return truck || destination || meter || cod || toll;
+    }
+
+    function getCurrentScreen() {
+      if (document.getElementById('record-screen').classList.contains('active')) return 'record';
+      if (document.getElementById('history-screen').classList.contains('active')) return 'history';
+      if (document.getElementById('admin-screen').classList.contains('active')) return 'admin';
+      return '';
+    }
+
     function navigateTo(screen) {
       closeSidebar();
+      const currentScreen = getCurrentScreen();
+
+      // 入力画面から離れる場合、未保存チェック
+      if (currentScreen === 'record') {
+        if (currentRecordType === 'start' && hasUnsavedStartChanges()) {
+          pendingNavigation = screen;
+          unsavedFormType = 'start';
+          document.getElementById('unsaved-modal-message').innerHTML = '業務開始の入力データが保存されていません。<br>どうしますか？';
+          document.getElementById('unsaved-modal').classList.add('active');
+          return;
+        }
+        if (currentRecordType === 'end' && hasUnsavedEndChanges()) {
+          pendingNavigation = screen;
+          unsavedFormType = 'end';
+          document.getElementById('unsaved-modal-message').innerHTML = '業務終了の入力データが保存されていません。<br>どうしますか？';
+          document.getElementById('unsaved-modal').classList.add('active');
+          return;
+        }
+      }
+
+      // 履歴画面から離れる場合、リセット
+      if (currentScreen === 'history') {
+        resetHistoryScreen();
+      }
+
+      // 管理画面から離れる場合、リセット
+      if (currentScreen === 'admin') {
+        resetAdminScreen();
+      }
+
+      executeNavigation(screen);
+    }
+
+    function executeNavigation(screen) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.sidebar-menu-item').forEach(m => m.classList.remove('active'));
 
@@ -978,11 +1056,114 @@
       }
     }
 
+    function handleSaveAndNavigate() {
+      document.getElementById('unsaved-modal').classList.remove('active');
+      const targetScreen = pendingNavigation;
+
+      if (unsavedFormType === 'start') {
+        // 開始フォームを送信
+        const form = document.getElementById('start-form');
+        if (form.checkValidity()) {
+          // 送信処理を実行し、成功後に遷移
+          const submitEvent = new Event('submit', { cancelable: true });
+          form.dispatchEvent(submitEvent);
+          // 送信後に遷移（少し待つ）
+          setTimeout(() => {
+            doNavigateAfterSave(targetScreen);
+          }, 1500);
+        } else {
+          form.reportValidity();
+          pendingNavigation = '';
+          unsavedFormType = '';
+        }
+      } else if (unsavedFormType === 'end') {
+        // 終了フォームを送信
+        const form = document.getElementById('end-form');
+        if (form.checkValidity()) {
+          const submitEvent = new Event('submit', { cancelable: true });
+          form.dispatchEvent(submitEvent);
+          setTimeout(() => {
+            doNavigateAfterSave(targetScreen);
+          }, 1500);
+        } else {
+          form.reportValidity();
+          pendingNavigation = '';
+          unsavedFormType = '';
+        }
+      }
+    }
+
+    function handleDiscardAndNavigate() {
+      document.getElementById('unsaved-modal').classList.remove('active');
+      const targetScreen = pendingNavigation;
+
+      // フォームをリセット
+      if (unsavedFormType === 'start') {
+        resetStartForm();
+      } else if (unsavedFormType === 'end') {
+        resetEndForm();
+      }
+
+      pendingNavigation = '';
+      unsavedFormType = '';
+      doNavigateAfterSave(targetScreen);
+    }
+
+    function doNavigateAfterSave(targetScreen) {
+      if (targetScreen === 'admin-auth') {
+        if (isAdminAuthenticated) {
+          executeNavigation('admin');
+        } else {
+          document.getElementById('password-modal').classList.add('active');
+          document.getElementById('admin-password').value = '';
+          document.getElementById('admin-password').focus();
+        }
+      } else {
+        executeNavigation(targetScreen);
+      }
+    }
+
+    function resetHistoryScreen() {
+      document.getElementById('history-filter-truck').value = '';
+      document.getElementById('history-list').innerHTML = '<div class="empty-state"><p>履歴を表示するには条件を選択してください</p></div>';
+      lastMergedRecords = [];
+    }
+
+    function resetAdminScreen() {
+      document.getElementById('admin-truck-select').value = '';
+      document.getElementById('admin-truck-detail').classList.add('hidden');
+    }
+
     // パスワード認証
     function openPasswordModal() {
       closeSidebar();
+      const currentScreen = getCurrentScreen();
+
+      // 入力画面から離れる場合、未保存チェック
+      if (currentScreen === 'record') {
+        if (currentRecordType === 'start' && hasUnsavedStartChanges()) {
+          pendingNavigation = 'admin-auth';
+          unsavedFormType = 'start';
+          document.getElementById('unsaved-modal-message').innerHTML = '業務開始の入力データが保存されていません。<br>どうしますか？';
+          document.getElementById('unsaved-modal').classList.add('active');
+          return;
+        }
+        if (currentRecordType === 'end' && hasUnsavedEndChanges()) {
+          pendingNavigation = 'admin-auth';
+          unsavedFormType = 'end';
+          document.getElementById('unsaved-modal-message').innerHTML = '業務終了の入力データが保存されていません。<br>どうしますか？';
+          document.getElementById('unsaved-modal').classList.add('active');
+          return;
+        }
+      }
+
+      // 履歴画面から離れる場合、リセット
+      if (currentScreen === 'history') {
+        resetHistoryScreen();
+      }
+
       if (isAdminAuthenticated) {
-        navigateTo('admin');
+        executeNavigation('admin');
         return;
       }
       document.getElementById('password-modal').classList.add('active');
@@ -1267,16 +1448,40 @@
 
     function onEndTruckChange() {
       const truckNumber = document.getElementById('end-truck').value;
-      document.getElementById('end-driver-btn').disabled = !truckNumber;
       if (truckNumber) {
-        loadTruckData(truckNumber, 'end');
+        checkStartRecordExists();
         checkDuplicate('end');
         // 号車設定を読み込んでフォームを更新
         loadEndFormSettings(truckNumber);
       } else {
-        populateSelect('end-driver', []);
         resetEndFormLabels();
       }
+    }
+
+    function checkStartRecordExists() {
+      const date = document.getElementById('end-date').value;
+      const truck = document.getElementById('end-truck').value;
+      if (!date || !truck) return;
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (!result.exists) {
+            // 開始情報がない場合は警告を表示
+            showStartRecordWarning();
+          }
+        })
+        .checkExistingRecord(date, truck, '業務開始');
+    }
+
+    function showStartRecordWarning() {
+      document.getElementById('start-warning-modal').classList.add('active');
+    }
+
+    function closeStartWarningModal() {
+      document.getElementById('start-warning-modal').classList.remove('active');
+      // フォームをリセット
+      document.getElementById('end-truck').value = '';
+      resetEndFormLabels();
     }
 
     function loadEndFormSettings(truckNumber) {
@@ -1309,6 +1514,7 @@
     function onEndDateChange() {
       const truckNumber = document.getElementById('end-truck').value;
       if (truckNumber) {
+        checkStartRecordExists();
         checkDuplicate('end');
       }
     }
@@ -1354,8 +1560,7 @@
         populateSelect('start-vehicle', []);
       } else {
         document.getElementById('end-truck').value = '';
-        document.getElementById('end-driver-btn').disabled = true;
-        populateSelect('end-driver', []);
+        resetEndFormLabels();
       }
       showMessage('入力をクリアしました', 'success');
     }
@@ -1370,8 +1575,6 @@
           if (formType === 'start') {
             populateSelect('start-driver', data.drivers);
             populateSelect('start-vehicle', data.vehicles);
-          } else {
-            populateSelect('end-driver', data.drivers);
           }
         })
         .withFailureHandler(function() {
@@ -1705,7 +1908,6 @@
       const data = {
         date: document.getElementById('end-date').value,
         truckNumber: document.getElementById('end-truck').value,
-        driverName: document.getElementById('end-driver').value,
         destination: destination,
         returnMeter: meter,
         centerArrivalTime: centerTime,
@@ -1771,8 +1973,6 @@
 
     function resetEndForm() {
       document.getElementById('end-truck').value = '';
-      document.getElementById('end-driver-btn').disabled = true;
-      populateSelect('end-driver', []);
       document.getElementById('end-destination').value = '';
       document.getElementById('end-meter').value = '';
       document.querySelectorAll('input[name="cashOnDelivery"]').forEach(r => r.checked = false);
@@ -1951,7 +2151,8 @@
           travelTime: matchingEnd ? matchingEnd.travelTime || 30 : 30,
           destination: matchingEnd ? matchingEnd.destination || '' : '',
           hasCashOnDelivery: matchingEnd ? matchingEnd.hasCashOnDelivery || '' : '',
-          hasEnd: !!matchingEnd
+          hasEnd: !!matchingEnd,
+          timestamp: matchingEnd ? matchingEnd.timestamp || start.timestamp : start.timestamp
         });
       });
 
@@ -1982,7 +2183,8 @@
             travelTime: end.travelTime || 30,
             destination: end.destination || '',
             hasCashOnDelivery: end.hasCashOnDelivery || '',
-            hasEnd: true
+            hasEnd: true,
+            timestamp: end.timestamp || ''
           });
         }
       });
@@ -2064,6 +2266,10 @@
           html += '<p style="color:#dc3545;font-weight:600;padding:10px 15px;margin:0;font-size:0.9em;">※ 代引き・返金がありました</p>';
         }
         html += '<button class="copy-btn" onclick="copySingleTruck(' + index + ')">' + data.truckNumber + ' をコピー</button>';
+        if (data.timestamp) {
+          const tsDate = data.timestamp.split(' ')[0].replace(/\//g, '-');
+          html += '<p style="color:#999;font-size:0.75em;text-align:right;margin:5px 10px 0;padding:0;">最終送信: ' + tsDate + '</p>';
+        }
         html += '</div>';
       });
 
