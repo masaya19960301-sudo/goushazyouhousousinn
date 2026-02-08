@@ -3,8 +3,22 @@
  * Google Apps Script サーバーサイドコード
  */
 
-// 管理者パスワード（デプロイ時に変更してください）
-const ADMIN_PASSWORD = 'admin1234';
+// デフォルトパスワード（初回のみ使用）
+const DEFAULT_ADMIN_PASSWORD = 'admin1234';
+
+/**
+ * 管理者パスワードを取得（PropertiesServiceから）
+ */
+function getAdminPassword() {
+  const props = PropertiesService.getScriptProperties();
+  let password = props.getProperty('ADMIN_PASSWORD');
+  if (!password) {
+    // 初回は定数のパスワードを使用し、PropertiesServiceに保存
+    password = DEFAULT_ADMIN_PASSWORD;
+    props.setProperty('ADMIN_PASSWORD', password);
+  }
+  return password;
+}
 
 // シート名
 const SHEET_NAMES = {
@@ -836,7 +850,35 @@ function formatHistoryForCopy(records) {
  * 管理者パスワードを検証
  */
 function verifyAdminPassword(password) {
-  return password === ADMIN_PASSWORD;
+  return password === getAdminPassword();
+}
+
+/**
+ * 管理者パスワードを変更
+ */
+function changeAdminPassword(currentPassword, newPassword) {
+  try {
+    // 現在のパスワードを検証
+    if (currentPassword !== getAdminPassword()) {
+      return { success: false, message: '現在のパスワードが正しくありません' };
+    }
+
+    // 新しいパスワードの形式チェック（英字と数字の両方を含む）
+    const hasLetter = /[a-zA-Z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    if (!hasLetter || !hasNumber) {
+      return { success: false, message: 'パスワードは英字と数字の両方を含める必要があります' };
+    }
+
+    // パスワードを更新
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('ADMIN_PASSWORD', newPassword);
+
+    return { success: true, message: 'パスワードを変更しました' };
+  } catch (e) {
+    Logger.log('changeAdminPassword error: ' + e.message);
+    return { success: false, message: 'エラー: ' + e.message };
+  }
 }
 
 /**

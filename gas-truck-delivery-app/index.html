@@ -602,6 +602,38 @@
       color: #999;
       font-size: 0.9em;
     }
+    .password-input-group {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .password-input-group input {
+      flex: 1;
+      padding-right: 45px;
+    }
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 1.2em;
+      cursor: pointer;
+      padding: 5px;
+      color: #666;
+    }
+    .password-toggle:hover {
+      color: #333;
+    }
+    .password-hint {
+      font-size: 0.8em;
+      color: #666;
+      margin-top: 5px;
+    }
+    .password-error {
+      font-size: 0.85em;
+      color: #dc3545;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
@@ -625,6 +657,10 @@
       <div class="sidebar-menu-item" onclick="openPasswordModal()">
         <span class="sidebar-menu-item-icon">⚙️</span>
         <span>ドライバー・車両管理</span>
+      </div>
+      <div class="sidebar-menu-item" onclick="openPasswordChangeModal()">
+        <span class="sidebar-menu-item-icon">🔐</span>
+        <span>パスワード管理</span>
       </div>
     </div>
   </div>
@@ -873,6 +909,39 @@
     </div>
   </div>
 
+    <!-- パスワード管理画面 -->
+    <div class="screen" id="password-screen">
+      <div class="card">
+        <div class="card-title">パスワード変更</div>
+        <div class="form-group">
+          <label>現在のパスワード *</label>
+          <div class="password-input-group">
+            <input type="password" id="current-password" placeholder="現在のパスワードを入力">
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('current-password', this)">👁️</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>新しいパスワード *</label>
+          <div class="password-input-group">
+            <input type="password" id="new-password" placeholder="新しいパスワードを入力" oninput="validatePasswordFormat()">
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('new-password', this)">👁️</button>
+          </div>
+          <p class="password-hint">※ 英字と数字の両方を含む必要があります</p>
+          <p class="password-error" id="password-format-error" style="display:none;"></p>
+        </div>
+        <div class="form-group">
+          <label>新しいパスワード（確認） *</label>
+          <div class="password-input-group">
+            <input type="password" id="confirm-password" placeholder="新しいパスワードを再入力" oninput="validatePasswordMatch()">
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirm-password', this)">👁️</button>
+          </div>
+          <p class="password-error" id="password-match-error" style="display:none;"></p>
+        </div>
+        <button class="submit-btn" onclick="changePassword()">パスワードを変更</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 新規登録モーダル -->
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
@@ -1020,6 +1089,7 @@
       if (document.getElementById('record-screen').classList.contains('active')) return 'record';
       if (document.getElementById('history-screen').classList.contains('active')) return 'history';
       if (document.getElementById('admin-screen').classList.contains('active')) return 'admin';
+      if (document.getElementById('password-screen').classList.contains('active')) return 'password';
       return '';
     }
 
@@ -1027,21 +1097,12 @@
       closeSidebar();
       const currentScreen = getCurrentScreen();
 
-      // 入力画面から離れる場合、未保存チェック
+      // 入力画面から離れる場合、自動リセット（警告なし）
       if (currentScreen === 'record') {
-        if (currentRecordType === 'start' && hasUnsavedStartChanges()) {
-          pendingNavigation = screen;
-          unsavedFormType = 'start';
-          document.getElementById('unsaved-modal-message').innerHTML = '業務開始の入力データが保存されていません。<br>どうしますか？';
-          document.getElementById('unsaved-modal').classList.add('active');
-          return;
-        }
-        if (currentRecordType === 'end' && hasUnsavedEndChanges()) {
-          pendingNavigation = screen;
-          unsavedFormType = 'end';
-          document.getElementById('unsaved-modal-message').innerHTML = '業務終了の入力データが保存されていません。<br>どうしますか？';
-          document.getElementById('unsaved-modal').classList.add('active');
-          return;
+        if (currentRecordType === 'start') {
+          resetStartForm();
+        } else if (currentRecordType === 'end') {
+          resetEndForm();
         }
       }
 
@@ -1062,6 +1123,11 @@
         resetAdminScreen();
       }
 
+      // パスワード画面から離れる場合、リセット
+      if (currentScreen === 'password') {
+        resetPasswordScreen();
+      }
+
       executeNavigation(screen);
     }
 
@@ -1079,6 +1145,10 @@
       } else if (screen === 'admin') {
         document.getElementById('admin-screen').classList.add('active');
         document.querySelectorAll('.sidebar-menu-item')[2].classList.add('active');
+      } else if (screen === 'password') {
+        document.getElementById('password-screen').classList.add('active');
+        document.querySelectorAll('.sidebar-menu-item')[3].classList.add('active');
+        resetPasswordScreen();
       }
     }
 
@@ -1086,37 +1156,7 @@
       document.getElementById('unsaved-modal').classList.remove('active');
       const targetScreen = pendingNavigation;
 
-      if (unsavedFormType === 'start') {
-        // 開始フォームを送信
-        const form = document.getElementById('start-form');
-        if (form.checkValidity()) {
-          // 送信処理を実行し、成功後に遷移
-          const submitEvent = new Event('submit', { cancelable: true });
-          form.dispatchEvent(submitEvent);
-          // 送信後に遷移（少し待つ）
-          setTimeout(() => {
-            doNavigateAfterSave(targetScreen);
-          }, 1500);
-        } else {
-          form.reportValidity();
-          pendingNavigation = '';
-          unsavedFormType = '';
-        }
-      } else if (unsavedFormType === 'end') {
-        // 終了フォームを送信
-        const form = document.getElementById('end-form');
-        if (form.checkValidity()) {
-          const submitEvent = new Event('submit', { cancelable: true });
-          form.dispatchEvent(submitEvent);
-          setTimeout(() => {
-            doNavigateAfterSave(targetScreen);
-          }, 1500);
-        } else {
-          form.reportValidity();
-          pendingNavigation = '';
-          unsavedFormType = '';
-        }
-      } else if (unsavedFormType === 'admin') {
+      if (unsavedFormType === 'admin') {
         // 管理画面の未保存を保存
         saveAdminChangesAndNavigate(targetScreen);
       }
@@ -1185,12 +1225,7 @@
       document.getElementById('unsaved-modal').classList.remove('active');
       const targetScreen = pendingNavigation;
 
-      // フォームをリセット
-      if (unsavedFormType === 'start') {
-        resetStartForm();
-      } else if (unsavedFormType === 'end') {
-        resetEndForm();
-      } else if (unsavedFormType === 'admin') {
+      if (unsavedFormType === 'admin') {
         resetAdminScreen();
       }
 
@@ -1234,21 +1269,12 @@
       closeSidebar();
       const currentScreen = getCurrentScreen();
 
-      // 入力画面から離れる場合、未保存チェック
+      // 入力画面から離れる場合、自動リセット（警告なし）
       if (currentScreen === 'record') {
-        if (currentRecordType === 'start' && hasUnsavedStartChanges()) {
-          pendingNavigation = 'admin-auth';
-          unsavedFormType = 'start';
-          document.getElementById('unsaved-modal-message').innerHTML = '業務開始の入力データが保存されていません。<br>どうしますか？';
-          document.getElementById('unsaved-modal').classList.add('active');
-          return;
-        }
-        if (currentRecordType === 'end' && hasUnsavedEndChanges()) {
-          pendingNavigation = 'admin-auth';
-          unsavedFormType = 'end';
-          document.getElementById('unsaved-modal-message').innerHTML = '業務終了の入力データが保存されていません。<br>どうしますか？';
-          document.getElementById('unsaved-modal').classList.add('active');
-          return;
+        if (currentRecordType === 'start') {
+          resetStartForm();
+        } else if (currentRecordType === 'end') {
+          resetEndForm();
         }
       }
 
@@ -1286,6 +1312,142 @@
           showMessage('認証に失敗しました', 'error');
         })
         .verifyAdminPassword(password);
+    }
+
+    // パスワード管理画面
+    function openPasswordChangeModal() {
+      closeSidebar();
+      const currentScreen = getCurrentScreen();
+
+      // 入力画面から離れる場合、自動リセット
+      if (currentScreen === 'record') {
+        if (currentRecordType === 'start') {
+          resetStartForm();
+        } else if (currentRecordType === 'end') {
+          resetEndForm();
+        }
+      }
+
+      // 履歴画面から離れる場合、リセット
+      if (currentScreen === 'history') {
+        resetHistoryScreen();
+      }
+
+      // 管理画面から離れる場合、未保存チェック
+      if (currentScreen === 'admin') {
+        if (hasUnsavedAdminChanges()) {
+          pendingNavigation = 'password';
+          unsavedFormType = 'admin';
+          document.getElementById('unsaved-modal-message').innerHTML = '管理画面の入力データが保存されていません。<br>どうしますか？';
+          document.getElementById('unsaved-modal').classList.add('active');
+          return;
+        }
+        resetAdminScreen();
+      }
+
+      executeNavigation('password');
+    }
+
+    function togglePasswordVisibility(inputId, button) {
+      const input = document.getElementById(inputId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        button.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        button.textContent = '👁️';
+      }
+    }
+
+    function validatePasswordFormat() {
+      const password = document.getElementById('new-password').value;
+      const errorEl = document.getElementById('password-format-error');
+
+      if (password === '') {
+        errorEl.style.display = 'none';
+        return true;
+      }
+
+      const hasLetter = /[a-zA-Z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+
+      if (!hasLetter || !hasNumber) {
+        errorEl.textContent = '英字と数字の両方を含めてください';
+        errorEl.style.display = 'block';
+        return false;
+      }
+
+      errorEl.style.display = 'none';
+      return true;
+    }
+
+    function validatePasswordMatch() {
+      const newPassword = document.getElementById('new-password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+      const errorEl = document.getElementById('password-match-error');
+
+      if (confirmPassword === '') {
+        errorEl.style.display = 'none';
+        return true;
+      }
+
+      if (newPassword !== confirmPassword) {
+        errorEl.textContent = 'パスワードが一致しません';
+        errorEl.style.display = 'block';
+        return false;
+      }
+
+      errorEl.style.display = 'none';
+      return true;
+    }
+
+    function changePassword() {
+      const currentPassword = document.getElementById('current-password').value;
+      const newPassword = document.getElementById('new-password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        showMessage('全ての項目を入力してください', 'error');
+        return;
+      }
+
+      if (!validatePasswordFormat()) {
+        showMessage('新しいパスワードは英字と数字の両方を含める必要があります', 'error');
+        return;
+      }
+
+      if (!validatePasswordMatch()) {
+        showMessage('新しいパスワードが一致しません', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage(result.message, 'success');
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+            document.getElementById('password-format-error').style.display = 'none';
+            document.getElementById('password-match-error').style.display = 'none';
+            // パスワードが変更されたので再認証が必要
+            isAdminAuthenticated = false;
+          } else {
+            showMessage(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function() {
+          showMessage('パスワード変更に失敗しました', 'error');
+        })
+        .changeAdminPassword(currentPassword, newPassword);
+    }
+
+    function resetPasswordScreen() {
+      document.getElementById('current-password').value = '';
+      document.getElementById('new-password').value = '';
+      document.getElementById('confirm-password').value = '';
+      document.getElementById('password-format-error').style.display = 'none';
+      document.getElementById('password-match-error').style.display = 'none';
     }
 
     // 管理画面
