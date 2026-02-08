@@ -952,7 +952,8 @@
     let overwriteMode = false;
     let currentEndTruckSettings = { submitTiming: '営業所到着', travelTime: 30 };  // 終了フォームの現在の号車設定
     let pendingNavigation = '';  // 遷移先を保持
-    let unsavedFormType = '';  // 'start' or 'end'
+    let unsavedFormType = '';  // 'start', 'end', or 'admin'
+    let originalAdminSettings = { submitTiming: '営業所到着', travelTime: 30 };  // 管理画面の元設定
 
     document.addEventListener('DOMContentLoaded', initializePage);
 
@@ -997,6 +998,24 @@
       return truck || destination || meter || cod || toll;
     }
 
+    function hasUnsavedAdminChanges() {
+      const truckSelect = document.getElementById('admin-truck-select').value;
+      if (!truckSelect) return false;
+
+      // 入力中のドライバー名・車両Noがあるか
+      const newDriver = document.getElementById('admin-new-driver').value.trim();
+      const newVehicle = document.getElementById('admin-new-vehicle').value.trim();
+      if (newDriver || newVehicle) return true;
+
+      // 設定が変更されているか
+      const currentTiming = document.querySelector('input[name="submitTiming"]:checked')?.value || '営業所到着';
+      const currentTravelTime = parseInt(document.getElementById('settings-travel-time').value) || 30;
+      if (currentTiming !== originalAdminSettings.submitTiming) return true;
+      if (currentTravelTime !== originalAdminSettings.travelTime) return true;
+
+      return false;
+    }
+
     function getCurrentScreen() {
       if (document.getElementById('record-screen').classList.contains('active')) return 'record';
       if (document.getElementById('history-screen').classList.contains('active')) return 'history';
@@ -1031,8 +1050,15 @@
         resetHistoryScreen();
       }
 
-      // 管理画面から離れる場合、リセット
+      // 管理画面から離れる場合、未保存チェック
       if (currentScreen === 'admin') {
+        if (hasUnsavedAdminChanges()) {
+          pendingNavigation = screen;
+          unsavedFormType = 'admin';
+          document.getElementById('unsaved-modal-message').innerHTML = '管理画面の入力データが保存されていません。<br>どうしますか？';
+          document.getElementById('unsaved-modal').classList.add('active');
+          return;
+        }
         resetAdminScreen();
       }
 
@@ -1090,6 +1116,68 @@
           pendingNavigation = '';
           unsavedFormType = '';
         }
+      } else if (unsavedFormType === 'admin') {
+        // 管理画面の未保存を保存
+        saveAdminChangesAndNavigate(targetScreen);
+      }
+    }
+
+    function saveAdminChangesAndNavigate(targetScreen) {
+      // 入力中のドライバー・車両Noがあれば先に登録
+      const newDriver = document.getElementById('admin-new-driver').value.trim();
+      const newVehicle = document.getElementById('admin-new-vehicle').value.trim();
+      const truckNumber = document.getElementById('admin-truck-select').value;
+
+      let saveCount = 0;
+      let expectedSaves = 0;
+
+      if (newDriver) expectedSaves++;
+      if (newVehicle) expectedSaves++;
+
+      // 設定変更チェック
+      const currentTiming = document.querySelector('input[name="submitTiming"]:checked')?.value || '営業所到着';
+      const currentTravelTime = parseInt(document.getElementById('settings-travel-time').value) || 30;
+      const settingsChanged = (currentTiming !== originalAdminSettings.submitTiming ||
+                              currentTravelTime !== originalAdminSettings.travelTime);
+      if (settingsChanged) expectedSaves++;
+
+      function checkAndNavigate() {
+        saveCount++;
+        if (saveCount >= expectedSaves) {
+          resetAdminScreen();
+          pendingNavigation = '';
+          unsavedFormType = '';
+          doNavigateAfterSave(targetScreen);
+        }
+      }
+
+      if (expectedSaves === 0) {
+        resetAdminScreen();
+        pendingNavigation = '';
+        unsavedFormType = '';
+        doNavigateAfterSave(targetScreen);
+        return;
+      }
+
+      if (newDriver) {
+        google.script.run
+          .withSuccessHandler(checkAndNavigate)
+          .withFailureHandler(checkAndNavigate)
+          .registerDriver(truckNumber, newDriver);
+      }
+
+      if (newVehicle) {
+        google.script.run
+          .withSuccessHandler(checkAndNavigate)
+          .withFailureHandler(checkAndNavigate)
+          .registerVehicle(truckNumber, newVehicle);
+      }
+
+      if (settingsChanged) {
+        google.script.run
+          .withSuccessHandler(checkAndNavigate)
+          .withFailureHandler(checkAndNavigate)
+          .updateTruckSettings(truckNumber, currentTiming, currentTravelTime);
       }
     }
 
@@ -1102,6 +1190,8 @@
         resetStartForm();
       } else if (unsavedFormType === 'end') {
         resetEndForm();
+      } else if (unsavedFormType === 'admin') {
+        resetAdminScreen();
       }
 
       pendingNavigation = '';
@@ -1132,6 +1222,11 @@
     function resetAdminScreen() {
       document.getElementById('admin-truck-select').value = '';
       document.getElementById('admin-truck-detail').classList.add('hidden');
+      document.getElementById('admin-new-driver').value = '';
+      document.getElementById('admin-new-vehicle').value = '';
+      document.getElementById('admin-driver-list').innerHTML = '';
+      document.getElementById('admin-vehicle-list').innerHTML = '';
+      originalAdminSettings = { submitTiming: '営業所到着', travelTime: 30 };
     }
 
     // パスワード認証
@@ -1222,6 +1317,7 @@
       // 号車設定を読み込み
       google.script.run
         .withSuccessHandler(function(settings) {
+          originalAdminSettings = { submitTiming: settings.submitTiming, travelTime: settings.travelTime };
           const timingRadios = document.querySelectorAll('input[name="submitTiming"]');
           timingRadios.forEach(radio => {
             radio.checked = (radio.value === settings.submitTiming);
@@ -1231,6 +1327,10 @@
           document.getElementById('settings-travel-time').value = settings.travelTime;
         })
         .getTruckSettings(truckNumber);
+
+      // 入力フィールドをクリア
+      document.getElementById('admin-new-driver').value = '';
+      document.getElementById('admin-new-vehicle').value = '';
     }
 
     function renderAdminList(containerId, items, type, truckNumber) {
@@ -2267,8 +2367,22 @@
         }
         html += '<button class="copy-btn" onclick="copySingleTruck(' + index + ')">' + data.truckNumber + ' をコピー</button>';
         if (data.timestamp) {
-          const tsDate = data.timestamp.split(' ')[0].replace(/\//g, '-');
-          html += '<p style="color:#999;font-size:0.75em;text-align:right;margin:5px 10px 0;padding:0;">最終送信: ' + tsDate + '</p>';
+          let tsDate = '';
+          if (data.timestamp.includes('/')) {
+            // Format: "yyyy/MM/dd HH:mm:ss"
+            tsDate = data.timestamp.split(' ')[0].replace(/\//g, '-');
+          } else {
+            // Format: "Wed Jan 15 2024..." or Date object serialized
+            const dateObj = new Date(data.timestamp);
+            if (!isNaN(dateObj.getTime())) {
+              tsDate = dateObj.getFullYear() + '-' +
+                       String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
+                       String(dateObj.getDate()).padStart(2, '0');
+            }
+          }
+          if (tsDate) {
+            html += '<p style="color:#999;font-size:0.75em;text-align:right;margin:5px 10px 0;padding:0;">最終送信: ' + tsDate + '</p>';
+          }
         }
         html += '</div>';
       });
