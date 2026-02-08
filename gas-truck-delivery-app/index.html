@@ -1442,6 +1442,8 @@
         .withSuccessHandler(function(result) {
           if (result.success) {
             showMessage(result.message, 'success');
+            // 保存成功後、現在の値を「元の設定」として更新
+            originalAdminSettings = { submitTiming: submitTiming, travelTime: travelTime };
           } else {
             showMessage(result.message, 'error');
           }
@@ -2367,21 +2369,26 @@
         }
         html += '<button class="copy-btn" onclick="copySingleTruck(' + index + ')">' + data.truckNumber + ' をコピー</button>';
         if (data.timestamp) {
-          let tsDate = '';
+          let tsDateTime = '';
           if (data.timestamp.includes('/')) {
             // Format: "yyyy/MM/dd HH:mm:ss"
-            tsDate = data.timestamp.split(' ')[0].replace(/\//g, '-');
+            const parts = data.timestamp.split(' ');
+            const datePart = parts[0].replace(/\//g, '-');
+            const timePart = parts[1] ? parts[1].substring(0, 5) : '';
+            tsDateTime = datePart + (timePart ? ' ' + timePart : '');
           } else {
             // Format: "Wed Jan 15 2024..." or Date object serialized
             const dateObj = new Date(data.timestamp);
             if (!isNaN(dateObj.getTime())) {
-              tsDate = dateObj.getFullYear() + '-' +
+              tsDateTime = dateObj.getFullYear() + '-' +
                        String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
-                       String(dateObj.getDate()).padStart(2, '0');
+                       String(dateObj.getDate()).padStart(2, '0') + ' ' +
+                       String(dateObj.getHours()).padStart(2, '0') + ':' +
+                       String(dateObj.getMinutes()).padStart(2, '0');
             }
           }
-          if (tsDate) {
-            html += '<p style="color:#999;font-size:0.75em;text-align:right;margin:5px 10px 0;padding:0;">最終送信: ' + tsDate + '</p>';
+          if (tsDateTime) {
+            html += '<p style="color:#999;font-size:0.75em;text-align:right;margin:5px 10px 0;padding:0;">最終送信: ' + tsDateTime + '</p>';
           }
         }
         html += '</div>';
