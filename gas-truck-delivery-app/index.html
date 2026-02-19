@@ -2390,11 +2390,10 @@
       const endRecords = records.filter(r => r.recordType === '業務終了');
 
       startRecords.forEach(start => {
-        // 同じ日付、号車、ドライバーの終了レコードを探す
+        // 同じ日付・号車の終了レコードを探す（ドライバー名は不要）
         const matchingEnd = endRecords.find(end =>
           end.date === start.date &&
-          end.truckNumber === start.truckNumber &&
-          end.driverName === start.driverName
+          end.truckNumber === start.truckNumber
         );
         merged.push({
           date: start.date,
@@ -2424,8 +2423,7 @@
       endRecords.forEach(end => {
         const hasStart = startRecords.find(start =>
           start.date === end.date &&
-          start.truckNumber === end.truckNumber &&
-          start.driverName === end.driverName
+          start.truckNumber === end.truckNumber
         );
         if (!hasStart) {
           merged.push({
