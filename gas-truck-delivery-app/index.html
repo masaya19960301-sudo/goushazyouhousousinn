@@ -1884,15 +1884,14 @@
       const section = document.createElement('div');
       section.className = 'toll-section';
       section.id = 'toll-section-' + tollSectionCount;
-      section.innerHTML = `
-        <div class="toll-section-header">
-          <span class="toll-section-title">区間 ${tollSectionCount}</span>
-          ${tollSectionCount > 1 ? '<button type="button" class="remove-toll-btn" onclick="removeTollSection(' + tollSectionCount + ')">削除</button>' : ''}
-        </div>
-        <div class="form-group"><label>9. 開始区間</label><input type="text" class="toll-start" placeholder="例：東京IC" required></div>
-        <div class="form-group"><label>10. 終了区間</label><input type="text" class="toll-end" placeholder="例：横浜IC" required></div>
-        <div class="form-group"><label>11. 料金（円）</label><input type="text" class="toll-fee" placeholder="半角数字で入力" pattern="[0-9]*" inputmode="numeric" required></div>
-      `;
+      var deleteBtn = tollSectionCount > 1 ? '<button type="button" class="remove-toll-btn" onclick="removeTollSection(' + tollSectionCount + ')">削除</button>' : '';
+      section.innerHTML = '<div class="toll-section-header">' +
+        '<span class="toll-section-title">区間 ' + tollSectionCount + '</span>' +
+        deleteBtn +
+        '</div>' +
+        '<div class="form-group"><label>9. 開始区間</label><input type="text" class="toll-start" placeholder="例：東京IC" required></div>' +
+        '<div class="form-group"><label>10. 終了区間</label><input type="text" class="toll-end" placeholder="例：横浜IC" required></div>' +
+        '<div class="form-group"><label>11. 料金（円）</label><input type="text" class="toll-fee" placeholder="半角数字で入力" pattern="[0-9]*" inputmode="numeric" required></div>';
       container.appendChild(section);
       updateAddTollButton();
     }
