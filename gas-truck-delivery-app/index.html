@@ -2136,6 +2136,10 @@
           if (result.success) {
             showMessage(result.message, 'success');
             resetStartForm();
+            // Androidアプリを自動起動（Deep Link）
+            setTimeout(function() {
+              window.location.href = 'deliverytracker://start';
+            }, 500);
           } else {
             showMessage(result.message, 'error');
           }
