@@ -2137,16 +2137,16 @@
             showMessage(result.message, 'success');
             resetStartForm();
             // Androidアプリを自動起動（Deep Link）
-            // iframeを使用してページ遷移せずにDeep Linkを発行
-            setTimeout(function() {
-              var iframe = document.createElement('iframe');
-              iframe.style.display = 'none';
-              iframe.src = 'deliverytracker://start';
-              document.body.appendChild(iframe);
-              setTimeout(function() {
-                document.body.removeChild(iframe);
-              }, 1000);
-            }, 500);
+            try {
+              var link = document.createElement('a');
+              link.href = 'deliverytracker://start';
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            } catch (e) {
+              console.log('Deep Link error:', e);
+            }
           } else {
             showMessage(result.message, 'error');
           }
