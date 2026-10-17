@@ -770,7 +770,7 @@
             </div>
             <div class="form-group">
               <label>4. 帰庫メーターを入力してください *</label>
-              <input type="text" id="end-meter" placeholder="半角数字で入力（例：12400）" pattern="[0-9]*" inputmode="numeric" required>
+              <input type="text" id="end-meter" placeholder="半角数字で入力（例：12400）" pattern="[0-9]*" inputmode="numeric" required onchange="onEndMeterChange()">
             </div>
             <div class="form-group" id="center-arrival-group">
               <label>5. 配送センターへ到着した時間を選択してください *</label>
@@ -783,9 +783,9 @@
             <div class="form-group" id="office-time-group">
               <label id="office-time-label">6. 営業所へ帰庫した時間を選択してください *</label>
               <div class="time-select-group">
-                <select id="end-office-hour" required><option value="">時</option></select>
+                <select id="end-office-hour" required onchange="onEndOfficeTimeChange()"><option value="">時</option></select>
                 <span class="time-separator">:</span>
-                <select id="end-office-minute" required><option value="">分</option></select>
+                <select id="end-office-minute" required onchange="onEndOfficeTimeChange()"><option value="">分</option></select>
               </div>
             </div>
             <div class="form-group">
@@ -994,6 +994,19 @@
     </div>
   </div>
 
+  <!-- 走行距離・拘束時間確認モーダル -->
+  <div class="duplicate-modal" id="sanity-modal">
+    <div class="duplicate-modal-content">
+      <div class="duplicate-modal-icon">⚠️</div>
+      <div class="duplicate-modal-title" id="sanity-modal-title"></div>
+      <div class="duplicate-modal-message" id="sanity-modal-message"></div>
+      <div class="duplicate-modal-buttons">
+        <button class="duplicate-modal-btn clear" onclick="handleSanityOk()">問題ない</button>
+        <button class="duplicate-modal-btn overwrite" onclick="handleSanityNg()">入力し直す</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 未保存警告モーダル -->
   <div class="duplicate-modal" id="unsaved-modal">
     <div class="duplicate-modal-content">
@@ -1020,6 +1033,9 @@
     let duplicateCheckForm = '';  // 'start' or 'end'
     let overwriteMode = false;
     let currentEndTruckSettings = { submitTiming: '営業所到着', travelTime: 30 };  // 終了フォームの現在の号車設定
+    let startRecordInfo = null;  // 終了フォームで選択中の日付・号車の開始情報（出庫メーター・出庫時刻）
+    let sanityConfirmed = { meter: null, time: null };  // 「問題ない」と確認済みの入力値
+    let sanityPending = null;  // 確認モーダルで回答待ちのチェック
     let pendingNavigation = '';  // 遷移先を保持
     let unsavedFormType = '';  // 'start', 'end', or 'admin'
     let originalAdminSettings = { submitTiming: '営業所到着', travelTime: 30 };  // 管理画面の元設定
@@ -1719,22 +1735,154 @@
         loadEndFormSettings(truckNumber);
       } else {
         resetEndFormLabels();
+        resetSanityState();
       }
     }
 
     function checkStartRecordExists() {
       const date = document.getElementById('end-date').value;
       const truck = document.getElementById('end-truck').value;
+      resetSanityState();
       if (!date || !truck) return;
 
       google.script.run
         .withSuccessHandler(function(result) {
+          // 結果が返る前に日付・号車が変わっていたら無視
+          if (document.getElementById('end-date').value !== date ||
+              document.getElementById('end-truck').value !== truck) return;
           if (!result.exists) {
             // 開始情報がない場合は警告を表示
             showStartRecordWarning();
+          } else {
+            startRecordInfo = {
+              departureMeter: result.departureMeter || '',
+              departureTime: result.departureTime || ''
+            };
+            runSanityChecks(['meter', 'time'], null);
           }
         })
         .checkExistingRecord(date, truck, '業務開始');
+    }
+
+    // ===== 走行距離・拘束時間チェック =====
+    function resetSanityState() {
+      startRecordInfo = null;
+      sanityConfirmed = { meter: null, time: null };
+      sanityPending = null;
+      document.getElementById('sanity-modal').classList.remove('active');
+    }
+
+    function timeToMinutes(timeStr) {
+      if (!timeStr) return null;
+      var parts = String(timeStr).split(':');
+      if (parts.length < 2) return null;
+      var h = parseInt(parts[0], 10);
+      var m = parseInt(parts[1], 10);
+      if (isNaN(h) || isNaN(m)) return null;
+      return h * 60 + m;
+    }
+
+    function formatMinutesJa(total) {
+      return total + '分（' + Math.floor(total / 60) + '時間' + (total % 60) + '分）';
+    }
+
+    function getMeterWarning() {
+      if (!startRecordInfo || !startRecordInfo.departureMeter) return null;
+      var endMeter = document.getElementById('end-meter').value.trim();
+      if (!/^[0-9]+$/.test(endMeter)) return null;
+      var startMeter = parseInt(startRecordInfo.departureMeter, 10);
+      if (isNaN(startMeter)) return null;
+      var distance = parseInt(endMeter, 10) - startMeter;
+      if (distance >= 0 && distance <= 200) return null;
+      var reason = distance < 0 ? '走行距離がマイナスになっています。' : '走行距離が200kmを超えています。';
+      return {
+        key: endMeter,
+        title: '走行距離を確認してください',
+        message: reason + '<br><br>' +
+          '<b>【開始情報】</b><br>出庫メーター：' + startMeter + ' km<br><br>' +
+          '<b>【計算結果】</b><br>帰庫メーター：' + endMeter + ' km<br>' +
+          '走行距離：<span style="color:#dc3545;font-weight:bold;">' + distance + ' km</span><br><br>' +
+          'この内容で問題ありませんか？'
+      };
+    }
+
+    function getTimeWarning() {
+      if (!startRecordInfo || !startRecordInfo.departureTime) return null;
+      var destination = document.getElementById('end-destination').value;
+      var hour = document.getElementById('end-office-hour').value;
+      var minute = document.getElementById('end-office-minute').value;
+      if (!destination || !hour || !minute) return null;
+      var officeTime = hour + ':' + minute;
+      var times = calculateTimes({
+        destination: destination,
+        officeArrivalTime: officeTime,
+        submitTiming: currentEndTruckSettings.submitTiming,
+        travelTime: currentEndTruckSettings.travelTime
+      });
+      var startMin = timeToMinutes(startRecordInfo.departureTime);
+      var endMin = timeToMinutes(times.businessEndTime);
+      if (startMin === null || endMin === null) return null;
+      var restraint = endMin - startMin;
+      if (restraint < 0) restraint += 24 * 60;  // 日をまたいだ場合
+      if (restraint > 200 && restraint < 600) return null;
+      var reason = restraint >= 600 ? '合計拘束時間が600分以上です。' : '合計拘束時間が200分以下です。';
+      return {
+        key: officeTime + '|' + destination + '|' + currentEndTruckSettings.submitTiming + '|' + currentEndTruckSettings.travelTime,
+        title: '拘束時間を確認してください',
+        message: reason + '<br><br>' +
+          '<b>【開始情報】</b><br>出庫時刻：' + startRecordInfo.departureTime + '<br><br>' +
+          '<b>【計算結果】</b><br>業務終了：' + times.businessEndTime + '<br>' +
+          '帰庫時間：' + times.returnTime + '<br>' +
+          '合計拘束時間：<span style="color:#dc3545;font-weight:bold;">' + formatMinutesJa(restraint) + '</span><br><br>' +
+          'この内容で問題ありませんか？'
+      };
+    }
+
+    // kinds: ['meter', 'time'] の順にチェックし、すべて問題なければ onPass を実行
+    function runSanityChecks(kinds, onPass) {
+      for (var i = 0; i < kinds.length; i++) {
+        var kind = kinds[i];
+        var warning = kind === 'meter' ? getMeterWarning() : getTimeWarning();
+        if (warning && sanityConfirmed[kind] !== warning.key) {
+          sanityPending = { kind: kind, key: warning.key, kinds: kinds, onPass: onPass };
+          document.getElementById('sanity-modal-title').textContent = warning.title;
+          document.getElementById('sanity-modal-message').innerHTML = warning.message;
+          document.getElementById('sanity-modal').classList.add('active');
+          return;
+        }
+      }
+      if (onPass) onPass();
+    }
+
+    function handleSanityOk() {
+      document.getElementById('sanity-modal').classList.remove('active');
+      var pending = sanityPending;
+      sanityPending = null;
+      if (!pending) return;
+      sanityConfirmed[pending.kind] = pending.key;
+      runSanityChecks(pending.kinds, pending.onPass);
+    }
+
+    function handleSanityNg() {
+      document.getElementById('sanity-modal').classList.remove('active');
+      var pending = sanityPending;
+      sanityPending = null;
+      if (!pending) return;
+      if (pending.kind === 'meter') {
+        document.getElementById('end-meter').value = '';
+        document.getElementById('end-meter').focus();
+      } else {
+        document.getElementById('end-office-hour').value = '';
+        document.getElementById('end-office-minute').value = '';
+      }
+    }
+
+    function onEndMeterChange() {
+      runSanityChecks(['meter'], null);
+    }
+
+    function onEndOfficeTimeChange() {
+      runSanityChecks(['time'], null);
     }
 
     function showStartRecordWarning() {
@@ -1753,6 +1901,7 @@
         .withSuccessHandler(function(settings) {
           currentEndTruckSettings = settings;
           updateEndFormLabels(settings.submitTiming);
+          runSanityChecks(['time'], null);
         })
         .withFailureHandler(function() {
           currentEndTruckSettings = { submitTiming: '営業所到着', travelTime: 30 };
@@ -1861,6 +2010,7 @@
         centerHour.setAttribute('required', '');
         centerMinute.setAttribute('required', '');
       }
+      runSanityChecks(['time'], null);
     }
 
     function onTollRoadChange() {
@@ -2170,6 +2320,13 @@
           if (!validateNumericInput(tollFees[i].value, '有料道路料金')) return;
         }
       }
+      // 走行距離・拘束時間を確認してから送信
+      runSanityChecks(['meter', 'time'], function() {
+        submitEndRecord(meter, useToll);
+      });
+    }
+
+    function submitEndRecord(meter, useToll) {
       const submitBtn = document.getElementById('end-submit-btn');
       submitBtn.disabled = true;
       submitBtn.textContent = '送信中...';
@@ -2256,6 +2413,7 @@
       tollSectionCount = 0;
       document.querySelectorAll('.radio-option').forEach(o => o.classList.remove('selected'));
       resetEndFormLabels();
+      resetSanityState();
       setCurrentDateTime();
     }
 

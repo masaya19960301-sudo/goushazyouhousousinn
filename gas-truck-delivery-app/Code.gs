@@ -768,7 +768,9 @@ function checkExistingRecord(date, truckNumber, recordType) {
         return {
           exists: true,
           rowIndex: i + 1,
-          recordId: data[i][0]
+          recordId: data[i][0],
+          departureMeter: data[i][8] ? String(data[i][8]) : '',
+          departureTime: formatTimeValue(data[i][9])
         };
       }
     }
