@@ -480,7 +480,7 @@ function formatDateValue(value) {
 
   // 既にDate型の場合
   if (value instanceof Date) {
-    return Utilities.formatDate(value, 'Asia/Tokyo', 'yyyy-MM-dd');
+    return Utilities.formatDate(value, getSheetTimeZone(), 'yyyy-MM-dd');
   }
 
   // 文字列の場合、そのまま返す（既にYYYY-MM-DD形式と仮定）
@@ -496,6 +496,22 @@ function formatDateValue(value) {
 }
 
 /**
+ * スプレッドシートのタイムゾーンを取得（キャッシュ）
+ * シートが自動変換した時刻はシートのタイムゾーン基準なので、同じタイムゾーンで整形する
+ */
+let cachedSheetTimeZone = null;
+function getSheetTimeZone() {
+  if (!cachedSheetTimeZone) {
+    try {
+      cachedSheetTimeZone = getSpreadsheet().getSpreadsheetTimeZone() || 'Asia/Tokyo';
+    } catch (e) {
+      cachedSheetTimeZone = 'Asia/Tokyo';
+    }
+  }
+  return cachedSheetTimeZone;
+}
+
+/**
  * 時刻を文字列に変換（HH:MM形式）
  */
 function formatTimeValue(value) {
@@ -504,7 +520,7 @@ function formatTimeValue(value) {
   // オブジェクト（Date含む）の場合、まずUtilities.formatDateを試す
   if (typeof value === 'object') {
     try {
-      return Utilities.formatDate(value, 'Asia/Tokyo', 'HH:mm');
+      return Utilities.formatDate(value, getSheetTimeZone(), 'HH:mm');
     } catch (e) {
       Logger.log('formatTimeValue object error: ' + e.message);
     }
